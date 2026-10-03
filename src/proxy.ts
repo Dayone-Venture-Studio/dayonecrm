@@ -72,6 +72,7 @@ export async function proxy(request: NextRequest) {
       if (role === 'ADMIN') url.pathname = '/admin'
       else if (role === 'FOUNDER') url.pathname = '/founder'
       else if (role === 'STAFF') url.pathname = '/staff'
+      else if (role === 'VENTURE_MANAGER') url.pathname = '/venture-manager'
       else url.pathname = '/'
       return NextResponse.redirect(url)
     }
@@ -90,6 +91,12 @@ export async function proxy(request: NextRequest) {
     }
 
     if (pathname.startsWith('/staff') && role !== 'STAFF') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/unauthorized'
+      return NextResponse.redirect(url)
+    }
+
+    if (pathname.startsWith('/venture-manager') && role !== 'VENTURE_MANAGER') {
       const url = request.nextUrl.clone()
       url.pathname = '/unauthorized'
       return NextResponse.redirect(url)

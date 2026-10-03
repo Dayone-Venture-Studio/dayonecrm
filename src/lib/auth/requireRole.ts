@@ -43,6 +43,13 @@ export async function requireStaff(): Promise<SessionUser> {
 }
 
 /**
+ * Convenience: require VENTURE_MANAGER role
+ */
+export async function requireVentureManager(): Promise<SessionUser> {
+  return requireRole(['VENTURE_MANAGER'])
+}
+
+/**
  * Convenience: require FOUNDER or STAFF (startup member)
  */
 export async function requireStartupMember(): Promise<SessionUser> {

@@ -1,6 +1,6 @@
 // ─── Enums ─────────────────────────────────────────────────────────────────
 
-export type Role = 'ADMIN' | 'FOUNDER' | 'STAFF'
+export type Role = 'ADMIN' | 'FOUNDER' | 'STAFF' | 'VENTURE_MANAGER'
 export type StartupStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'INACTIVE'
 export type MemberRole = 'FOUNDER' | 'STAFF'
 export type RegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -13,6 +13,9 @@ export type WeeklyCompletionStatus =
   | 'COMPLETED_ON_TIME'
   | 'COMPLETED_LATE'
   | 'INCOMPLETE'
+export type NoteEntityType = 'STARTUP' | 'TASK' | 'WEEKLY_PLAN'
+export type NoteUrgency = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+export type NoteVisibility = 'ADMIN_ONLY' | 'SHARED_WITH_STARTUP'
 
 // ─── DB Row Types ───────────────────────────────────────────────────────────
 
@@ -138,6 +141,21 @@ export interface ActivityLog {
   created_at: string
 }
 
+export interface VentureManagerNote {
+  id: string
+  created_by: string
+  entity_type: NoteEntityType
+  entity_id: string
+  note_text: string
+  urgency: NoteUrgency
+  visibility: NoteVisibility
+  resolved: boolean
+  resolved_by: string | null
+  resolved_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 // ─── Joined / Enriched Types ────────────────────────────────────────────────
 
 export interface StartupWithFounder extends Startup {
@@ -162,6 +180,18 @@ export interface ActivityLogWithProfile extends ActivityLog {
 
 export interface StartupMemberWithProfile extends StartupMember {
   profile: Profile
+}
+
+export interface VentureManagerNoteWithProfile extends VentureManagerNote {
+  creator: Profile | null
+  resolver: Profile | null
+}
+
+export interface VentureManagerNoteWithEntity extends VentureManagerNote {
+  creator: Profile | null
+  startup?: Startup | null
+  task?: Task | null
+  weekly_plan?: WeeklyPlan | null
 }
 
 // ─── Form / Action State Types ──────────────────────────────────────────────

@@ -50,6 +50,7 @@ export async function login(
   if (profile.role === 'ADMIN') redirect('/admin')
   if (profile.role === 'FOUNDER') redirect('/founder')
   if (profile.role === 'STAFF') redirect('/staff')
+  if (profile.role === 'VENTURE_MANAGER') redirect('/venture-manager')
 
   redirect('/')
 }
