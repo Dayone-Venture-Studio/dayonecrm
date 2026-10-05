@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { logActivity } from '@/features/activity/actions'
-import type { ActionState, WeeklyPlan } from '@/types'
+import type { ActionState } from '@/types'
 
 const WeeklyPlanSchema = z.object({
   startup_id: z.string().uuid(),
@@ -113,19 +113,4 @@ export async function deleteWeeklyPlan(
   revalidatePath('/staff')
   revalidatePath('/tv')
   return { success: 'Weekly plan deleted' }
-}
-
-export async function getCurrentWeekPlan(startupId: string): Promise<WeeklyPlan | null> {
-  const supabase = await createClient()
-  const today = new Date().toISOString().split('T')[0]
-
-  const { data } = await supabase
-    .from('weekly_plans')
-    .select('*')
-    .eq('startup_id', startupId)
-    .lte('week_start', today)
-    .gte('week_end', today)
-    .single()
-
-  return data
 }

@@ -1,6 +1,6 @@
 import { requireVentureManager } from '@/lib/auth/requireRole'
 import { getPortfolioSnapshot, getTrendData } from '@/lib/venture-manager/portfolioAnalytics'
-import { getAllActiveNotes } from '@/features/venture-manager/actions'
+import { getAllActiveNotes } from '@/lib/venture-manager/queries'
 import { VentureManagerDashboardClient } from '@/components/venture-manager/VentureManagerDashboardClient'
 import type { Metadata } from 'next'
 

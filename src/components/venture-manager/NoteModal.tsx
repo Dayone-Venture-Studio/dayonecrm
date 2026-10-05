@@ -58,7 +58,7 @@ export function NoteModal({
         formData.append('note_text', noteText)
         formData.append('urgency', urgency)
         formData.append('visibility', visibility)
-        const result = await updateNote(formData)
+        const result = await updateNote({}, formData)
         
         if (result.error) {
           setError(result.error)
@@ -72,7 +72,7 @@ export function NoteModal({
         formData.append('note_text', noteText)
         formData.append('urgency', urgency)
         formData.append('visibility', visibility)
-        const result = await createNote(formData)
+        const result = await createNote({}, formData)
         
         if (result.error) {
           setError(result.error)

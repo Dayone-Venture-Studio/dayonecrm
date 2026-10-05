@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/getSession'
+import { getMembershipForUser } from '@/lib/startups/queries'
 import { WeeklyPlanClient } from '@/components/weekly-plan/WeeklyPlanClient'
+import { PageHeader } from '@/components/layout/PageHeader'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Weekly Plan' }
@@ -14,14 +16,8 @@ export default async function WeeklyPlanPage(props: Props) {
   const supabase = await createClient()
   const searchParams = props.searchParams ? await props.searchParams : {}
 
-  const { data: member } = await supabase
-    .from('startup_members')
-    .select('startup_id')
-    .eq('user_id', session!.id)
-    .eq('role', 'FOUNDER')
-    .single()
-
-  const startupId = member?.startup_id
+  const membership = await getMembershipForUser(session!.id, 'FOUNDER')
+  const startupId = membership?.startup_id
   if (!startupId) return <div>Startup not found</div>
 
   const today = new Date().toISOString().split('T')[0]
@@ -64,12 +60,10 @@ export default async function WeeklyPlanPage(props: Props) {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Weekly Plans & Sprints</h1>
-          <p className="page-subtitle">Organize and track your startup&apos;s sprint execution</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Weekly Plans & Sprints"
+        subtitle={"Organize and track your startup's sprint execution"}
+      />
       <WeeklyPlanClient
         startupId={startupId}
         allPlans={allPlans || []}

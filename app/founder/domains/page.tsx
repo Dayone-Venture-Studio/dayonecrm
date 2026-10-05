@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/getSession'
+import { getMembershipForUser } from '@/lib/startups/queries'
 import { DomainsClient } from '@/components/domains/DomainsClient'
+import { PageHeader } from '@/components/layout/PageHeader'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Domains' }
@@ -9,14 +11,8 @@ export default async function DomainsPage() {
   const session = await getSession()
   const supabase = await createClient()
 
-  const { data: member } = await supabase
-    .from('startup_members')
-    .select('startup_id')
-    .eq('user_id', session!.id)
-    .eq('role', 'FOUNDER')
-    .single()
-
-  const startupId = member?.startup_id
+  const membership = await getMembershipForUser(session!.id, 'FOUNDER')
+  const startupId = membership?.startup_id
   if (!startupId) return <div>Startup not found</div>
 
   const { data: domains } = await supabase
@@ -27,12 +23,7 @@ export default async function DomainsPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Domains</h1>
-          <p className="page-subtitle">Organize your team by functional area</p>
-        </div>
-      </div>
+      <PageHeader title="Domains" subtitle="Organize your team by functional area" />
       <DomainsClient startupId={startupId} domains={domains || []} />
     </div>
   )

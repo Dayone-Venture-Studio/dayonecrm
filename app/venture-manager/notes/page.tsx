@@ -1,14 +1,14 @@
-import { requireAdmin } from '@/lib/auth/requireRole'
-import { getAllNotes } from '@/features/venture-manager/actions'
+import { requireVentureManager } from '@/lib/auth/requireRole'
+import { getAllNotes } from '@/lib/venture-manager/queries'
 import { NotesList } from '@/components/venture-manager/NotesList'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { 
-  title: 'Venture Manager Notes - Admin',
+  title: 'Venture Manager Notes',
 }
 
-export default async function AdminVentureManagerNotesPage() {
-  await requireAdmin()
+export default async function VentureManagerNotesPage() {
+  await requireVentureManager()
   
   const allNotes = await getAllNotes()
   const activeNotes = allNotes.filter(n => !n.resolved)

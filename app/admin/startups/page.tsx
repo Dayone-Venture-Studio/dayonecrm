@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import type { WeeklyPerformance } from '@/types'
 import { calculatePerformanceStatus } from '@/lib/performance/calculatePerformanceStatus'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
+import { PageHeader } from '@/components/layout/PageHeader'
 
 export const metadata: Metadata = { title: 'Startups' }
 
@@ -38,15 +39,15 @@ export default async function StartupsPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">All Startups</h1>
-          <p className="page-subtitle">Portfolio overview — {startups?.length || 0} startups</p>
-        </div>
-        <Link href="/tv" target="_blank" className="btn btn-secondary btn-sm">
-          📺 Multi-TV Studio Hub
-        </Link>
-      </div>
+      <PageHeader
+        title="All Startups"
+        subtitle={`Portfolio overview — ${startups?.length || 0} startups`}
+        actions={
+          <Link href="/tv" target="_blank" className="btn btn-secondary btn-sm">
+            📺 Multi-TV Studio Hub
+          </Link>
+        }
+      />
 
       {startups?.length === 0 ? (
         <div className="empty-state">
