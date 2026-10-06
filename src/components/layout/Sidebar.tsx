@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/features/auth/actions'
 import { Logo } from '@/components/brand/Logo'
+import { isNavItemActive, type NavItem } from '@/components/layout/nav'
 import {
   LayoutDashboard,
   CalendarRange,
@@ -19,12 +20,6 @@ import {
   Sparkles,
   Tv,
 } from 'lucide-react'
-
-interface NavItem {
-  href: string
-  label: string
-  icon: string
-}
 
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { FounderLogoManager } from '@/components/brand/FounderLogoManager'
@@ -171,12 +166,7 @@ export function Sidebar({
         <div className="sidebar-nav-section-label">Navigation</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {navItems.map((item) => {
-            const isActive =
-              item.href === pathname ||
-              (item.href !== '/admin' &&
-                item.href !== '/founder' &&
-                item.href !== '/staff' &&
-                pathname.startsWith(item.href))
+            const isActive = isNavItemActive(item, pathname)
             return (
               <Link
                 key={item.href}
