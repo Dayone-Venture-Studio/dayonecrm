@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { resolveNote } from '@/features/venture-manager/actions'
+import { resolveNote, deleteNote } from '@/features/venture-manager/actions'
 import type { VentureManagerNoteWithProfile } from '@/types'
 import { 
   CheckCircle, 
@@ -11,7 +11,8 @@ import {
   Eye,
   EyeOff,
   Clock,
-  User
+  User,
+  Trash2
 } from 'lucide-react'
 
 interface Props {
@@ -28,6 +29,7 @@ export function NotesList({
   showEntityInfo = false,
 }: Props) {
   const [resolvingId, setResolvingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleResolve = async (noteId: string, resolved: boolean) => {
     setResolvingId(noteId)
@@ -41,6 +43,23 @@ export function NotesList({
       console.error('Failed to resolve note:', err)
     } finally {
       setResolvingId(null)
+    }
+  }
+
+  const handleDelete = async (noteId: string) => {
+    if (!window.confirm('Delete this note?')) return
+    setDeletingId(noteId)
+    try {
+      const result = await deleteNote(noteId)
+      if (result.error) {
+        window.alert(result.error)
+        return
+      }
+      onRefresh?.()
+    } catch (err) {
+      console.error('Failed to delete note:', err)
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -143,6 +162,16 @@ export function NotesList({
                 >
                   {note.resolved ? <Circle size={16} /> : <CheckCircle size={16} />}
                 </button>
+                {!note.resolved && (
+                  <button
+                    onClick={() => handleDelete(note.id)}
+                    disabled={deletingId === note.id}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--color-text-muted)', opacity: deletingId === note.id ? 0.5 : 1 }}
+                    title="Delete note"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
             </div>
 

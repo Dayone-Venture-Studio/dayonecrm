@@ -3,6 +3,7 @@
 import React, { useState, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
+import { ModalOverlay } from '@/components/ui/ModalOverlay'
 import { updateStartupLogo } from '@/features/startups/actions'
 import {
   Camera,
@@ -275,30 +276,16 @@ export function FounderLogoManager({
 
       {/* ── Brand Logo Modal Dialog ── */}
       {isOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-            background: 'rgba(28, 22, 16, 0.65)',
-            backdropFilter: 'blur(6px)',
-            animation: 'fadeIn 0.15s ease',
-          }}
-          onClick={handleClose}
-        >
+        <ModalOverlay isOpen={isOpen} onClose={handleClose}>
           <div
-            onClick={(e) => e.stopPropagation()}
             style={{
               width: '100%',
               maxWidth: 580,
+              maxHeight: '90vh',
               background: '#ffffff',
               borderRadius: 16,
               border: '1px solid #e8e2d4',
-              boxShadow: '0 24px 48px -12px rgba(45, 38, 25, 0.25)',
+              boxShadow: 'var(--modal-shadow)',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
@@ -377,7 +364,7 @@ export function FounderLogoManager({
             </div>
 
             {/* Modal Body */}
-            <form onSubmit={handleSave} style={{ padding: 24 }}>
+            <form onSubmit={handleSave} style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
               {/* Status Alerts */}
               {statusState?.error && (
                 <div
@@ -897,7 +884,7 @@ export function FounderLogoManager({
               </div>
             </form>
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </>
   )

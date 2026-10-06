@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createNote, updateNote } from '@/features/venture-manager/actions'
+import { ModalOverlay } from '@/components/ui/ModalOverlay'
 import type { NoteEntityType, NoteUrgency, NoteVisibility, VentureManagerNote } from '@/types'
 import { X, Save, AlertCircle } from 'lucide-react'
 
@@ -96,8 +97,8 @@ export function NoteModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-      <div style={{ background: 'var(--color-surface)', borderRadius: 16, border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-lg)', width: '100%', maxWidth: 640, overflow: 'hidden' }}>
+    <ModalOverlay isOpen={isOpen} onClose={onClose}>
+      <div style={{ background: 'var(--color-surface)', borderRadius: 16, border: '1px solid var(--color-border)', boxShadow: 'var(--modal-shadow)', width: '100%', maxWidth: 640, maxHeight: 'calc(100dvh - 48px)', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         {/* Header */}
         <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--color-border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
@@ -124,7 +125,7 @@ export function NoteModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <form onSubmit={handleSubmit} style={{ padding: 32, display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto', flex: 1, minHeight: 0 }}>
           {/* Error Message */}
           {error && (
             <div style={{ background: 'rgba(202,47,43,0.1)', border: '1px solid rgba(202,47,43,0.2)', borderRadius: 8, padding: 16, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
@@ -273,6 +274,6 @@ export function NoteModal({
           </div>
         </form>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }
