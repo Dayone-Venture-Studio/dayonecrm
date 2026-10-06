@@ -133,7 +133,7 @@ export function NeedsAttentionSection({ atRiskStartups, urgentNotes, onAddNote }
                         by {note.creator?.full_name} · {new Date(note.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <Link href={`/venture-manager/notes/${note.id}`} style={{ fontSize: 12, color: 'var(--color-brand)', whiteSpace: 'nowrap', textDecoration: 'none', fontWeight: 600 }}>View →</Link>
+                    <Link href="/venture-manager/notes" style={{ fontSize: 12, color: 'var(--color-brand)', whiteSpace: 'nowrap', textDecoration: 'none', fontWeight: 600 }}>View →</Link>
                   </div>
                 ))}
               </div>

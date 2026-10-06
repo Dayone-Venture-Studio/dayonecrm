@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/getSession'
+import { getMembershipForUser } from '@/lib/startups/queries'
 import { TasksClient } from '@/components/tasks/TasksClient'
+import { PageHeader } from '@/components/layout/PageHeader'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'My Tasks' }
@@ -9,14 +11,8 @@ export default async function StaffTasksPage() {
   const session = await getSession()
   const supabase = await createClient()
 
-  const { data: member } = await supabase
-    .from('startup_members')
-    .select('startup_id')
-    .eq('user_id', session!.id)
-    .eq('role', 'STAFF')
-    .single()
-
-  const startupId = member?.startup_id
+  const membership = await getMembershipForUser(session!.id, 'STAFF')
+  const startupId = membership?.startup_id
   if (!startupId) return <div>Startup not found</div>
 
   const today = new Date().toISOString().split('T')[0]
@@ -44,12 +40,7 @@ export default async function StaffTasksPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">My Tasks</h1>
-          <p className="page-subtitle">{tasks?.length || 0} tasks assigned to you</p>
-        </div>
-      </div>
+      <PageHeader title="My Tasks" subtitle={`${tasks?.length || 0} tasks assigned to you`} />
       <TasksClient
         startupId={startupId}
         tasks={tasks || []}

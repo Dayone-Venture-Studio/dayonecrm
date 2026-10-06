@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { PageHeader } from '@/components/layout/PageHeader'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Activity Log' }
@@ -50,13 +51,11 @@ export default async function ActivityPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Activity Log</h1>
-          <p className="page-subtitle">All actions across the portfolio</p>
-        </div>
-        <span className="badge badge-neutral">{logs?.length || 0} entries</span>
-      </div>
+      <PageHeader
+        title="Activity Log"
+        subtitle="All actions across the portfolio"
+        actions={<span className="badge badge-neutral">{logs?.length || 0} entries</span>}
+      />
 
       <div className="card">
         {logs?.length === 0 ? (

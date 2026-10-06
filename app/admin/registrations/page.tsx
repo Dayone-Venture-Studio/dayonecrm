@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { RegistrationActions } from '@/components/registrations/RegistrationActions'
+import { PageHeader } from '@/components/layout/PageHeader'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Registrations' }
@@ -20,15 +21,15 @@ export default async function RegistrationsPage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Registration Requests</h1>
-          <p className="page-subtitle">Review and approve startup applications</p>
-        </div>
-        <div className="badge badge-warning" style={{ display: 'inline-flex' }}>
-          {pending.length} Pending
-        </div>
-      </div>
+      <PageHeader
+        title="Registration Requests"
+        subtitle="Review and approve startup applications"
+        actions={
+          <div className="badge badge-warning" style={{ display: 'inline-flex' }}>
+            {pending.length} Pending
+          </div>
+        }
+      />
 
       {/* Pending */}
       {pending.length > 0 && (

@@ -1,7 +1,15 @@
 import { requireVentureManager } from '@/lib/auth/requireRole'
-import { createClient } from '@/lib/supabase/server'
+import {
+  getStartupById,
+  getStartupNameById,
+  getMembersForStartup,
+  getDomainsForStartup,
+  getWeeklyPlansForStartup,
+  getTasksForStartup,
+  getProfileNameMap,
+} from '@/lib/startups/queries'
 import { getStartupTrendData } from '@/lib/venture-manager/portfolioAnalytics'
-import { getNotesForEntity } from '@/features/venture-manager/actions'
+import { getNotesForEntity } from '@/lib/venture-manager/queries'
 import { calculateStartupHealth } from '@/lib/performance/calculateStartupHealth'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { StartupDetailClient } from '@/components/venture-manager/StartupDetailClient'
@@ -17,64 +25,33 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { startupId } = await params
-  const supabase = await createClient()
-  
-  const { data: startup } = await supabase
-    .from('startups')
-    .select('name')
-    .eq('id', startupId)
-    .single()
+  const name = await getStartupNameById(startupId)
 
   return {
-    title: startup ? `${startup.name} - Venture Manager` : 'Startup Details',
+    title: name ? `${name} - Venture Manager` : 'Startup Details',
   }
 }
 
 export default async function StartupDetailPage({ params }: Props) {
   await requireVentureManager()
   const { startupId } = await params
-  
-  const supabase = await createClient()
 
   // Fetch startup and related data
-  const [
-    { data: startup },
-    { data: tasks },
-    { data: domains },
-    { data: members },
-    { data: weeklyPlans },
-  ] = await Promise.all([
-    supabase.from('startups').select('*').eq('id', startupId).single(),
-    supabase.from('tasks').select('*').eq('startup_id', startupId),
-    supabase.from('domains').select('*').eq('startup_id', startupId),
-    supabase
-      .from('startup_members')
-      .select('*, profile:profiles(id, full_name, email, role)')
-      .eq('startup_id', startupId),
-    supabase
-      .from('weekly_plans')
-      .select('*')
-      .eq('startup_id', startupId)
-      .order('week_start', { ascending: false })
-      .limit(1),
+  const [startup, tasks, domains, members, weeklyPlans, profileMap] = await Promise.all([
+    getStartupById(startupId),
+    getTasksForStartup(startupId),
+    getDomainsForStartup(startupId),
+    getMembersForStartup(startupId, { profileColumns: 'id, full_name, email, role' }),
+    getWeeklyPlansForStartup(startupId, { orderBy: 'week_start', ascending: false, limit: 1 }),
+    getProfileNameMap(),
   ])
 
   if (!startup) {
     notFound()
   }
 
-  // Get all profiles for name mapping
-  const { data: allProfiles } = await supabase
-    .from('profiles')
-    .select('id, full_name')
-  const profileMap = new Map((allProfiles || []).map((p) => [p.id, p.full_name]))
-
   // Calculate health
-  const health = calculateStartupHealth(
-    (tasks || []) as Task[],
-    (domains || []) as Domain[],
-    profileMap
-  )
+  const health = calculateStartupHealth(tasks as Task[], domains as Domain[], profileMap)
 
   // Get trend data
   const trendData = await getStartupTrendData(startupId, 8)

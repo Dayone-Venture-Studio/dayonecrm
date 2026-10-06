@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { PerformanceCharts } from '@/components/charts/PerformanceCharts'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { calculateStartupHealth } from '@/lib/performance/calculateStartupHealth'
+import { PageHeader } from '@/components/layout/PageHeader'
 import type { Metadata } from 'next'
 import type { WeeklyPerformance, Task, Domain } from '@/types'
 import Link from 'next/link'
@@ -117,16 +118,16 @@ export default async function PerformancePage() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Performance Analytics</h1>
-          <p className="page-subtitle">Portfolio-wide performance metrics, health scores, and trends</p>
-        </div>
-        <Link href="/tv" target="_blank" className="btn btn-secondary">
-          <MonitorPlay className="w-4 h-4 text-purple-600" />
-          <span>Launch TV Wall View</span>
-        </Link>
-      </div>
+      <PageHeader
+        title="Performance Analytics"
+        subtitle="Portfolio-wide performance metrics, health scores, and trends"
+        actions={
+          <Link href="/tv" target="_blank" className="btn btn-secondary">
+            <MonitorPlay className="w-4 h-4 text-purple-600" />
+            <span>Launch TV Wall View</span>
+          </Link>
+        }
+      />
 
       {/* Charts */}
       <PerformanceCharts barData={barData} trendData={trendData} statusData={statusData} />

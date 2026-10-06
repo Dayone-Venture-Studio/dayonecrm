@@ -5,7 +5,6 @@ import { revalidatePath } from 'next/cache'
 import { logActivity } from '@/features/activity/actions'
 import type {
   VentureManagerNote,
-  VentureManagerNoteWithProfile,
   NoteEntityType,
   NoteUrgency,
   NoteVisibility,
@@ -15,7 +14,10 @@ import type {
 /**
  * Creates a new venture manager note
  */
-export async function createNote(formData: FormData): Promise<ActionState> {
+export async function createNote(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -100,7 +102,10 @@ export async function createNote(formData: FormData): Promise<ActionState> {
 /**
  * Updates an existing venture manager note
  */
-export async function updateNote(formData: FormData): Promise<ActionState> {
+export async function updateNote(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -173,8 +178,8 @@ export async function updateNote(formData: FormData): Promise<ActionState> {
  * Resolves (or unresolves) a venture manager note
  */
 export async function resolveNote(
-  noteId: string,
-  resolved: boolean
+  prevState: ActionState,
+  formData: FormData
 ): Promise<ActionState> {
   try {
     const supabase = await createClient()
@@ -193,6 +198,13 @@ export async function resolveNote(
 
     if (!profile || !['VENTURE_MANAGER', 'ADMIN'].includes(profile.role)) {
       return { error: 'Unauthorized' }
+    }
+
+    const noteId = formData.get('note_id') as string
+    const resolved = formData.get('resolved') === 'true'
+
+    if (!noteId) {
+      return { error: 'Note ID is required' }
     }
 
     const { data: note, error } = await supabase
@@ -227,95 +239,6 @@ export async function resolveNote(
   }
 }
 
-/**
- * Fetches notes for a specific entity
- */
-export async function getNotesForEntity(
-  entityType: NoteEntityType,
-  entityId: string
-): Promise<VentureManagerNoteWithProfile[]> {
-  try {
-    const supabase = await createClient()
-
-    const { data: notes } = await supabase
-      .from('venture_manager_notes')
-      .select(`
-        *,
-        creator:created_by(id, full_name, email),
-        resolver:resolved_by(id, full_name, email)
-      `)
-      .eq('entity_type', entityType)
-      .eq('entity_id', entityId)
-      .order('created_at', { ascending: false })
-
-    return (notes || []) as unknown as VentureManagerNoteWithProfile[]
-  } catch (err) {
-    console.error('Error fetching notes:', err)
-    return []
-  }
-}
-
-/**
- * Fetches all active (unresolved) notes
- */
-export async function getAllActiveNotes(): Promise<VentureManagerNoteWithProfile[]> {
-  try {
-    const supabase = await createClient()
-
-    const { data: notes } = await supabase
-      .from('venture_manager_notes')
-      .select(`
-        *,
-        creator:created_by(id, full_name, email)
-      `)
-      .eq('resolved', false)
-      .order('urgency', { ascending: false }) // CRITICAL first
-      .order('created_at', { ascending: false })
-
-    return (notes || []) as unknown as VentureManagerNoteWithProfile[]
-  } catch (err) {
-    console.error('Error fetching active notes:', err)
-    return []
-  }
-}
-
-/**
- * Fetches all notes (with optional filters)
- */
-export async function getAllNotes(filters?: {
-  resolved?: boolean
-  urgency?: NoteUrgency
-  entityType?: NoteEntityType
-}): Promise<VentureManagerNoteWithProfile[]> {
-  try {
-    const supabase = await createClient()
-
-    let query = supabase
-      .from('venture_manager_notes')
-      .select(`
-        *,
-        creator:created_by(id, full_name, email),
-        resolver:resolved_by(id, full_name, email)
-      `)
-
-    if (filters?.resolved !== undefined) {
-      query = query.eq('resolved', filters.resolved)
-    }
-    if (filters?.urgency) {
-      query = query.eq('urgency', filters.urgency)
-    }
-    if (filters?.entityType) {
-      query = query.eq('entity_type', filters.entityType)
-    }
-
-    const { data: notes } = await query.order('created_at', { ascending: false })
-
-    return (notes || []) as unknown as VentureManagerNoteWithProfile[]
-  } catch (err) {
-    console.error('Error fetching notes:', err)
-    return []
-  }
-}
 
 /**
  * Deletes a note (admin only)

@@ -1,5 +1,3 @@
-'use client'
-
 import Link from 'next/link'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import type { StartupWithHealth } from '@/lib/venture-manager/portfolioAnalytics'
@@ -31,22 +29,16 @@ export function StartupHealthCard({ startup, notesCount = 0 }: Props) {
   const sc = STATUS_CONFIG[health.status] ?? STATUS_CONFIG['On Track']
 
   return (
-    <div style={{
-      background: 'var(--color-surface)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 14,
-      overflow: 'hidden',
-      display: 'flex',
-      flexDirection: 'column',
-      transition: 'box-shadow 0.2s, transform 0.2s',
-    }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--shadow-lg)'
-        ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLDivElement).style.boxShadow = ''
-        ;(e.currentTarget as HTMLDivElement).style.transform = ''
+    <div
+      className="group hover:shadow-[var(--shadow-lg)] hover:-translate-y-0.5"
+      style={{
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 14,
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'box-shadow 0.2s, transform 0.2s',
       }}
     >
       {/* Colored top accent bar */}
@@ -172,6 +164,7 @@ export function StartupHealthCard({ startup, notesCount = 0 }: Props) {
       <div style={{ padding: '12px 20px', borderTop: '1px solid var(--color-border-subtle)' }}>
         <Link
           href={`/venture-manager/startups/${startup.id}`}
+          className="group-hover:bg-[var(--color-brand)]"
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             padding: '9px 16px',
@@ -181,8 +174,6 @@ export function StartupHealthCard({ startup, notesCount = 0 }: Props) {
             textDecoration: 'none',
             transition: 'background 0.15s',
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-brand)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-text-primary)')}
         >
           View Details <ArrowRight size={14} />
         </Link>

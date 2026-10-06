@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/getSession'
+import { getMembershipForUser } from '@/lib/startups/queries'
+import { PageHeader } from '@/components/layout/PageHeader'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
@@ -9,14 +11,8 @@ export default async function StaffDashboard() {
   const session = await getSession()
   const supabase = await createClient()
 
-  const { data: member } = await supabase
-    .from('startup_members')
-    .select('startup_id')
-    .eq('user_id', session!.id)
-    .eq('role', 'STAFF')
-    .single()
-
-  const startupId = member?.startup_id
+  const membership = await getMembershipForUser(session!.id, 'STAFF')
+  const startupId = membership?.startup_id
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -72,20 +68,20 @@ export default async function StaffDashboard() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Hey, {session!.full_name.split(' ')[0]} 👋</h1>
-          <p className="page-subtitle">Here&apos;s your deliverables and sprint progress</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <Link href="/staff/tasks" className="btn btn-secondary">
-            View All Tasks
-          </Link>
-          <Link href="/staff/tasks?create=1" className="btn btn-primary">
-            + Add Task
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title={`Hey, ${session!.full_name.split(' ')[0]} 👋`}
+        subtitle={"Here's your deliverables and sprint progress"}
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Link href="/staff/tasks" className="btn btn-secondary">
+              View All Tasks
+            </Link>
+            <Link href="/staff/tasks?create=1" className="btn btn-primary">
+              + Add Task
+            </Link>
+          </div>
+        }
+      />
 
       {/* Stats */}
       <div className="grid-stats" style={{ marginBottom: 32 }}>

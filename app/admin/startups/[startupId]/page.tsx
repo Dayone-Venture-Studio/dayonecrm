@@ -1,4 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
+import {
+  getStartupById,
+  getMembersForStartup,
+  getDomainsForStartup,
+  getWeeklyPlansForStartup,
+  getTasksForStartup,
+} from '@/lib/startups/queries'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
@@ -15,54 +22,34 @@ export default async function StartupDetailPage({ params }: Props) {
   const supabase = await createClient()
 
   // Fetch startup + members + domains + current week + tasks + performance
-  const [
-    { data: startup },
-    { data: members },
-    { data: domains },
-    { data: weeklyPlans },
-    { data: recentTasks },
-    { data: performance },
-    { data: activity },
-  ] = await Promise.all([
-    supabase.from('startups').select('*').eq('id', startupId).single(),
-    supabase
-      .from('startup_members')
-      .select('*, profile:profiles(*)')
-      .eq('startup_id', startupId),
-    supabase.from('domains').select('*').eq('startup_id', startupId),
-    supabase
-      .from('weekly_plans')
-      .select('*')
-      .eq('startup_id', startupId)
-      .order('week_start', { ascending: false })
-      .limit(4),
-    supabase
-      .from('tasks')
-      .select('*')
-      .eq('startup_id', startupId)
-      .order('created_at', { ascending: false })
-      .limit(10),
-    supabase
-      .from('weekly_performance')
-      .select('*')
-      .eq('startup_id', startupId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single(),
-    supabase
-      .from('activity_logs')
-      .select('*')
-      .eq('startup_id', startupId)
-      .order('created_at', { ascending: false })
-      .limit(10),
-  ])
+  const [startup, members, domains, weeklyPlans, recentTasks, { data: performance }, { data: activity }] =
+    await Promise.all([
+      getStartupById(startupId),
+      getMembersForStartup(startupId),
+      getDomainsForStartup(startupId),
+      getWeeklyPlansForStartup(startupId, { orderBy: 'week_start', ascending: false, limit: 4 }),
+      getTasksForStartup(startupId, { orderBy: 'created_at', ascending: false, limit: 10 }),
+      supabase
+        .from('weekly_performance')
+        .select('*')
+        .eq('startup_id', startupId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single(),
+      supabase
+        .from('activity_logs')
+        .select('*')
+        .eq('startup_id', startupId)
+        .order('created_at', { ascending: false })
+        .limit(10),
+    ])
 
   if (!startup) notFound()
 
-  const founder = (members || []).find((m) => m.role === 'FOUNDER')
-  const staff = (members || []).filter((m) => m.role === 'STAFF')
-  const currentPlan = weeklyPlans?.[0]
-  const currentPlanTasks = (recentTasks || []).filter(
+  const founder = members.find((m) => m.role === 'FOUNDER')
+  const staff = members.filter((m) => m.role === 'STAFF')
+  const currentPlan = weeklyPlans[0]
+  const currentPlanTasks = recentTasks.filter(
     (t) => t.weekly_plan_id === currentPlan?.id
   )
   const doneTasks = currentPlanTasks.filter((t) => t.status === 'DONE').length
@@ -169,11 +156,11 @@ export default async function StartupDetailPage({ params }: Props) {
         {/* Domains */}
         <div className="card">
           <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Domains</h2>
-          {domains?.length === 0 ? (
+          {domains.length === 0 ? (
             <p style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>No domains created</p>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {domains?.map((d) => (
+              {domains.map((d) => (
                 <span key={d.id} className="badge badge-info">{d.name}</span>
               ))}
             </div>

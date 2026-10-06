@@ -32,7 +32,10 @@ export function NotesList({
   const handleResolve = async (noteId: string, resolved: boolean) => {
     setResolvingId(noteId)
     try {
-      await resolveNote(noteId, !resolved)
+      const formData = new FormData()
+      formData.append('note_id', noteId)
+      formData.append('resolved', String(!resolved))
+      await resolveNote({}, formData)
       onRefresh?.()
     } catch (err) {
       console.error('Failed to resolve note:', err)
