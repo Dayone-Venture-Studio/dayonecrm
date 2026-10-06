@@ -241,7 +241,8 @@ export async function resolveNote(
 
 
 /**
- * Deletes a note (admin only)
+ * Deletes a note. Admins can delete any note; venture managers only their own.
+ * Resolved notes cannot be deleted.
  */
 export async function deleteNote(noteId: string): Promise<ActionState> {
   try {
@@ -252,15 +253,32 @@ export async function deleteNote(noteId: string): Promise<ActionState> {
       return { error: 'Not authenticated' }
     }
 
-    // Only admins can delete notes
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'ADMIN') {
-      return { error: 'Unauthorized: Admin role required' }
+    if (!profile || !['VENTURE_MANAGER', 'ADMIN'].includes(profile.role)) {
+      return { error: 'Unauthorized' }
+    }
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('venture_manager_notes')
+      .select('id, resolved, created_by')
+      .eq('id', noteId)
+      .single()
+
+    if (fetchError || !existing) {
+      return { error: 'Note not found' }
+    }
+
+    if (existing.resolved) {
+      return { error: 'Resolved notes cannot be deleted' }
+    }
+
+    if (profile.role !== 'ADMIN' && existing.created_by !== user.id) {
+      return { error: 'Unauthorized: you can only delete your own notes' }
     }
 
     const { error } = await supabase
