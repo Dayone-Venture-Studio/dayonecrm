@@ -101,7 +101,7 @@ export function NeedsAttentionSection({ atRiskStartups, urgentNotes, onAddNote }
         <div style={{ padding: '0 20px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
           {/* Urgent Notes */}
-          {(criticalNotes.length > 0 || highNotes.length > 0) && (
+          {/* {(criticalNotes.length > 0 || highNotes.length > 0) && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <Flag size={12} color="#ca2f2b" />
@@ -138,7 +138,7 @@ export function NeedsAttentionSection({ atRiskStartups, urgentNotes, onAddNote }
                 ))}
               </div>
             </div>
-          )}
+          )} */}
 
           {/* At-Risk Startups */}
           {atRiskStartups.length > 0 && (

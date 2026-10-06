@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { requireVentureManager } from '@/lib/auth/requireRole'
 import {
   getStartupById,
@@ -9,18 +10,24 @@ import {
   getProfileNameMap,
 } from '@/lib/startups/queries'
 import { getStartupTrendData } from '@/lib/venture-manager/portfolioAnalytics'
-import { getNotesForEntity } from '@/lib/venture-manager/queries'
+import { getNotesForEntity, getNotesCountForEntity } from '@/lib/venture-manager/queries'
 import { calculateStartupHealth } from '@/lib/performance/calculateStartupHealth'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { StartupDetailClient } from '@/components/venture-manager/StartupDetailClient'
+import { NotesTab } from '@/components/venture-manager/NotesTab'
+import { TrendCharts } from '@/components/venture-manager/TrendCharts'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import type { Startup, Task, Domain, StartupMember, Profile } from '@/types'
 
+const TAB_TYPES = ['overview', 'tasks', 'notes', 'trends'] as const
+type TabType = (typeof TAB_TYPES)[number]
+
 interface Props {
   params: Promise<{ startupId: string }>
+  searchParams: Promise<{ tab?: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -32,18 +39,45 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function StartupDetailPage({ params }: Props) {
+function resolveTab(raw: string | undefined): TabType {
+  return TAB_TYPES.includes(raw as TabType) ? (raw as TabType) : 'overview'
+}
+
+interface TabSectionProps {
+  tab: TabType
+  startupId: string
+  startupName: string
+}
+
+async function TabSection({ tab, startupId, startupName }: TabSectionProps) {
+  if (tab === 'notes') {
+    const notes = await getNotesForEntity('STARTUP', startupId)
+    return <NotesTab notes={notes} startupId={startupId} startupName={startupName} />
+  }
+
+  if (tab === 'trends') {
+    const trendData = await getStartupTrendData(startupId, 8)
+    return <TrendCharts trendData={trendData} />
+  }
+
+  return null
+}
+
+export default async function StartupDetailPage({ params, searchParams }: Props) {
   await requireVentureManager()
   const { startupId } = await params
+  const { tab: rawTab } = await searchParams
+  const activeTab = resolveTab(rawTab)
 
-  // Fetch startup and related data
-  const [startup, tasks, domains, members, weeklyPlans, profileMap] = await Promise.all([
+  // Eager data: header, health, counts, overview + tasks tabs
+  const [startup, tasks, domains, members, weeklyPlans, profileMap, noteCount] = await Promise.all([
     getStartupById(startupId),
     getTasksForStartup(startupId),
     getDomainsForStartup(startupId),
     getMembersForStartup(startupId, { profileColumns: 'id, full_name, email, role' }),
     getWeeklyPlansForStartup(startupId, { orderBy: 'week_start', ascending: false, limit: 1 }),
     getProfileNameMap(),
+    getNotesCountForEntity('STARTUP', startupId),
   ])
 
   if (!startup) {
@@ -52,12 +86,6 @@ export default async function StartupDetailPage({ params }: Props) {
 
   // Calculate health
   const health = calculateStartupHealth(tasks as Task[], domains as Domain[], profileMap)
-
-  // Get trend data
-  const trendData = await getStartupTrendData(startupId, 8)
-
-  // Get notes
-  const startupNotes = await getNotesForEntity('STARTUP', startupId)
 
   // Get team members
   const teamMembers = (members || []) as (StartupMember & { profile: Profile })[]
@@ -122,18 +150,33 @@ export default async function StartupDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Client-side Interactive Content */}
+      {/* Client-side Interactive Content; notes/trends data streams in */}
       <StartupDetailClient
         startup={startup as Startup}
         health={health}
         tasks={(tasks || []) as Task[]}
         domains={(domains || []) as Domain[]}
-        trendData={trendData}
-        notes={startupNotes}
         founder={founder?.profile || null}
         staff={staff.map((s) => s.profile)}
         currentWeeklyPlan={weeklyPlans?.[0] || null}
-      />
+        activeTab={activeTab}
+        noteCount={noteCount}
+      >
+        <Suspense key={activeTab} fallback={<TabSkeleton />}>
+          <TabSection tab={activeTab} startupId={startupId} startupName={startup.name} />
+        </Suspense>
+      </StartupDetailClient>
+    </div>
+  )
+}
+
+function TabSkeleton() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ height: 24, width: 180, borderRadius: 8, background: 'var(--color-surface-2)' }} />
+      {[0, 1, 2].map((i) => (
+        <div key={i} style={{ height: 96, borderRadius: 10, background: 'var(--color-surface-2)' }} />
+      ))}
     </div>
   )
 }

@@ -1,12 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { NoteModal } from './NoteModal'
-import { NotesList } from './NotesList'
-import { TrendCharts } from './TrendCharts'
 import type { Startup, Task, Domain, Profile, WeeklyPlan, VentureManagerNoteWithProfile, NoteEntityType } from '@/types'
 import type { StartupHealthSummary } from '@/lib/performance/calculateStartupHealth'
-import type { TrendDataPoint } from '@/lib/venture-manager/portfolioAnalytics'
 import {
   Users,
   Layers,
@@ -14,7 +13,6 @@ import {
   MessageSquare,
   TrendingUp,
   Calendar,
-  Plus,
 } from 'lucide-react'
 
 interface Props {
@@ -22,11 +20,12 @@ interface Props {
   health: StartupHealthSummary
   tasks: Task[]
   domains: Domain[]
-  trendData: TrendDataPoint[]
-  notes: VentureManagerNoteWithProfile[]
   founder: Profile | null
   staff: Profile[]
   currentWeeklyPlan: WeeklyPlan | null
+  activeTab: TabType
+  noteCount: number
+  children?: ReactNode
 }
 
 type TabType = 'overview' | 'tasks' | 'notes' | 'trends'
@@ -36,16 +35,17 @@ export function StartupDetailClient({
   health,
   tasks,
   domains,
-  trendData,
-  notes,
   founder,
   staff,
   currentWeeklyPlan,
+  activeTab,
+  noteCount,
+  children,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<TabType>('overview')
+  const router = useRouter()
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false)
   const [editingNote, setEditingNote] = useState<VentureManagerNoteWithProfile | null>(null)
-  
+
   // Note Modal Context State
   const [noteEntityType, setNoteEntityType] = useState<NoteEntityType>('STARTUP')
   const [noteEntityId, setNoteEntityId] = useState<string>(startup.id)
@@ -59,15 +59,18 @@ export function StartupDetailClient({
     setIsNoteModalOpen(true)
   }
 
+  const basePath = `/venture-manager/startups/${startup.id}`
+  const tabHref = (id: TabType) => (id === 'overview' ? basePath : `${basePath}?tab=${id}`)
+
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: TrendingUp },
     { id: 'tasks' as TabType, label: `Tasks (${tasks.length})`, icon: CheckSquare },
-    { id: 'notes' as TabType, label: `Notes (${notes.length})`, icon: MessageSquare },
+    { id: 'notes' as TabType, label: `Notes (${noteCount})`, icon: MessageSquare },
     { id: 'trends' as TabType, label: 'Trends', icon: Calendar },
   ]
 
   const handleNoteSuccess = () => {
-    window.location.reload()
+    router.refresh()
   }
 
   const tasksByStatus = {
@@ -91,9 +94,10 @@ export function StartupDetailClient({
             const Icon = tab.icon
             const isActive = activeTab === tab.id
             return (
-              <button
+              <Link
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                href={tabHref(tab.id)}
+                scroll={false}
                 style={{
                   padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 8,
                   background: 'transparent', border: 'none', cursor: 'pointer',
@@ -101,11 +105,12 @@ export function StartupDetailClient({
                   color: isActive ? 'var(--color-brand)' : 'var(--color-text-muted)',
                   borderBottom: `2px solid ${isActive ? 'var(--color-brand)' : 'transparent'}`,
                   marginBottom: -1, transition: 'all 0.2s',
+                  textDecoration: 'none',
                 }}
               >
                 <Icon size={16} />
                 {tab.label}
-              </button>
+              </Link>
             )
           })}
         </div>
@@ -234,7 +239,7 @@ export function StartupDetailClient({
                     </p>
                     {currentWeeklyPlan.goal && (
                       <p style={{ margin: 0, fontSize: 14, color: 'var(--color-text-primary)', fontStyle: 'italic', opacity: 0.8 }}>
-                        "{currentWeeklyPlan.goal}"
+                        {currentWeeklyPlan.goal}
                       </p>
                     )}
                   </div>
@@ -249,7 +254,7 @@ export function StartupDetailClient({
               {['done', 'inProgress', 'todo'].map((status) => {
                 const statusTasks = tasksByStatus[status as keyof typeof tasksByStatus]
                 const statusLabels = { done: 'Done', inProgress: 'In Progress', todo: 'To Do' }
-                
+
                 return (
                   <div key={status}>
                     <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -304,36 +309,8 @@ export function StartupDetailClient({
             </div>
           )}
 
-          {/* Notes Tab */}
-          {activeTab === 'notes' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                  Notes ({notes.length})
-                </h3>
-                <button
-                  onClick={() => openNoteModal('STARTUP', startup.id, startup.name)}
-                  style={{
-                    padding: '8px 16px', background: 'var(--color-brand)', color: '#fff',
-                    borderRadius: 8, fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 6,
-                  }}
-                >
-                  <Plus size={16} /> Add Note
-                </button>
-              </div>
-              <NotesList
-                notes={notes}
-                onEdit={(note) => openNoteModal(note.entity_type, note.entity_id, note.entity_type.replace('_', ' '), note)}
-                onRefresh={handleNoteSuccess}
-              />
-            </div>
-          )}
-
-          {/* Trends Tab */}
-          {activeTab === 'trends' && (
-            <TrendCharts trendData={trendData} />
-          )}
+          {/* Notes & Trends tabs — data streamed in by server */}
+          {(activeTab === 'notes' || activeTab === 'trends') && children}
         </div>
       </div>
 
