@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { NoteModal } from './NoteModal'
 import { NotesList } from './NotesList'
 import { TrendCharts } from './TrendCharts'
-import type { Startup, Task, Domain, Profile, WeeklyPlan, VentureManagerNoteWithProfile } from '@/types'
+import type { Startup, Task, Domain, Profile, WeeklyPlan, VentureManagerNoteWithProfile, NoteEntityType } from '@/types'
 import type { StartupHealthSummary } from '@/lib/performance/calculateStartupHealth'
 import type { TrendDataPoint } from '@/lib/venture-manager/portfolioAnalytics'
 import {
