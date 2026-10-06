@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from 'react'
 import { updateTask } from '@/features/tasks/actions'
 import { DomainSelectWithQuickAdd } from '@/components/domains/DomainSelectWithQuickAdd'
+import { ModalOverlay } from '@/components/ui/ModalOverlay'
 import type { ActionState, Task, Domain, WeeklyPlan } from '@/types'
 
 export interface StaffMemberOption {
@@ -43,25 +44,7 @@ export function TaskEditModal({
   if (!task) return null
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.65)',
-        backdropFilter: 'blur(4px)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-    >
+    <ModalOverlay isOpen={!!task} onClose={onClose}>
       <div
         className="card"
         style={{
@@ -69,10 +52,10 @@ export function TaskEditModal({
           maxWidth: 580,
           maxHeight: '90vh',
           overflowY: 'auto',
-          backgroundColor: 'var(--color-surface, #1e293b)',
+          background: 'var(--color-surface)',
           borderRadius: 12,
           border: '1px solid var(--color-border)',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.4)',
+          boxShadow: 'var(--modal-shadow)',
           padding: 24,
         }}
       >
@@ -209,6 +192,6 @@ export function TaskEditModal({
           </div>
         </form>
       </div>
-    </div>
+    </ModalOverlay>
   )
 }

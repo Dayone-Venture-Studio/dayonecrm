@@ -7,6 +7,7 @@ import type { ActionState, WeeklyPlan, Domain, Task } from '@/types'
 import { createTask, updateTaskStatus } from '@/features/tasks/actions'
 import { DomainSelectWithQuickAdd } from '@/components/domains/DomainSelectWithQuickAdd'
 import { TaskEditModal, type StaffMemberOption } from '@/components/tasks/TaskEditModal'
+import { ModalOverlay } from '@/components/ui/ModalOverlay'
 
 interface StaffMemberEntry {
   user_id: string
@@ -605,34 +606,18 @@ export function WeeklyPlanClient({
 
       {/* Create Weekly Plan Modal */}
       {showCreatePlanModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowCreatePlanModal(false)
-          }}
-        >
+        <ModalOverlay isOpen={showCreatePlanModal} onClose={() => setShowCreatePlanModal(false)}>
           <div
             className="card"
             style={{
               width: '100%',
               maxWidth: 540,
-              backgroundColor: 'var(--color-surface, #1e293b)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: 'var(--color-surface)',
               borderRadius: 12,
               border: '1px solid var(--color-border)',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              boxShadow: 'var(--modal-shadow)',
               padding: 24,
             }}
           >
@@ -738,7 +723,7 @@ export function WeeklyPlanClient({
               </div>
             </form>
           </div>
-        </div>
+        </ModalOverlay>
       )}
 
       {/* Task Edit Modal */}

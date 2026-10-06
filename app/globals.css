@@ -63,6 +63,17 @@
   --shadow-lg: 0 12px 32px rgba(45, 38, 25, 0.09), 0 4px 12px rgba(45, 38, 25, 0.05);
   --shadow-brand: 0 4px 16px rgba(202, 47, 43, 0.22);
   --shadow-cream: 0 0 24px rgba(246, 242, 219, 0.8);
+  --z-base: 0;
+  --z-sidebar: 50;
+  --z-header: 60;
+  --z-dropdown: 70;
+  --z-modal-overlay: 100;
+  --z-modal-content: 101;
+
+  /* Modal Styling */
+  --modal-backdrop: rgba(30, 27, 24, 0.65);
+  --modal-backdrop-blur: blur(6px);
+  --modal-shadow: 0 24px 48px -12px rgba(45, 38, 25, 0.35);
 }
 
 /* ── Base ── */
@@ -116,7 +127,7 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 50;
+  z-index: var(--z-sidebar);
   box-shadow: 1px 0 10px rgba(45, 38, 25, 0.03);
 }
 
@@ -480,9 +491,9 @@ tr:hover td { background: #faf8eb; color: var(--color-text-primary); }
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(30, 27, 24, 0.45);
-  backdrop-filter: blur(5px);
-  z-index: 100;
+  background: var(--modal-backdrop);
+  backdrop-filter: var(--modal-backdrop-blur);
+  z-index: var(--z-modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -576,7 +587,7 @@ tr:hover td { background: #faf8eb; color: var(--color-text-primary); }
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: var(--z-header);
   padding: 16px 48px;
   display: flex;
   align-items: center;
