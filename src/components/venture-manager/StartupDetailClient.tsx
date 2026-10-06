@@ -30,6 +30,14 @@ interface Props {
 
 type TabType = 'overview' | 'tasks' | 'notes' | 'trends'
 
+const SECTION_TITLE = 'flex items-center gap-2 mb-4 text-base font-bold text-text-primary'
+
+const PRIORITY_BADGE: Record<string, string> = {
+  LOW: 'badge-info',
+  MEDIUM: 'badge-warning',
+  HIGH: 'badge-danger',
+}
+
 export function StartupDetailClient({
   startup,
   health,
@@ -81,15 +89,9 @@ export function StartupDetailClient({
 
   return (
     <>
-      <div style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 16,
-        overflow: 'hidden',
-        boxShadow: 'var(--shadow-sm)',
-      }}>
+      <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-sm">
         {/* Tabs */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border-subtle)', padding: '0 8px', background: 'var(--color-surface-2)' }}>
+        <div className="flex border-b border-border-subtle px-2 bg-surface-2">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id
@@ -98,15 +100,11 @@ export function StartupDetailClient({
                 key={tab.id}
                 href={tabHref(tab.id)}
                 scroll={false}
-                style={{
-                  padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 8,
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                  fontSize: 14, fontWeight: isActive ? 700 : 600,
-                  color: isActive ? 'var(--color-brand)' : 'var(--color-text-muted)',
-                  borderBottom: `2px solid ${isActive ? 'var(--color-brand)' : 'transparent'}`,
-                  marginBottom: -1, transition: 'all 0.2s',
-                  textDecoration: 'none',
-                }}
+                className={`flex items-center gap-2 px-5 py-4 text-sm no-underline border-b-2 -mb-px transition-all duration-200 ${
+                  isActive
+                    ? 'border-brand font-bold text-brand'
+                    : 'border-transparent font-semibold text-text-muted'
+                }`}
               >
                 <Icon size={16} />
                 {tab.label}
@@ -116,60 +114,51 @@ export function StartupDetailClient({
         </div>
 
         {/* Tab Content */}
-        <div style={{ padding: 32 }}>
+        <div className="p-8">
           {/* Overview Tab */}
           {activeTab === 'overview' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+            <div className="flex flex-col gap-8">
               {/* Key Metrics */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+              <div className="grid grid-cols-4 gap-4">
                 {[
-                  { label: 'Completion Rate', value: `${health.completionRate}%`, color: '#059669', bg: 'rgba(5,150,105,0.06)', border: 'rgba(5,150,105,0.2)' },
-                  { label: 'Total Tasks', value: health.totalTasks, color: '#0284c7', bg: 'rgba(2,132,199,0.06)', border: 'rgba(2,132,199,0.2)' },
-                  { label: 'Overdue Tasks', value: health.overdueTasks, color: '#d97706', bg: 'rgba(217,119,6,0.06)', border: 'rgba(217,119,6,0.2)' },
-                  { label: 'Active Blockers', value: health.blockers.length, color: '#ca2f2b', bg: 'rgba(202,47,43,0.06)', border: 'rgba(202,47,43,0.2)' },
+                  { label: 'Completion Rate', value: `${health.completionRate}%`, cls: 'border-[rgba(5,150,105,0.2)] bg-[rgba(5,150,105,0.06)] text-[#059669]' },
+                  { label: 'Total Tasks', value: health.totalTasks, cls: 'border-[rgba(2,132,199,0.2)] bg-[rgba(2,132,199,0.06)] text-[#0284c7]' },
+                  { label: 'Overdue Tasks', value: health.overdueTasks, cls: 'border-[rgba(217,119,6,0.2)] bg-[rgba(217,119,6,0.06)] text-[#d97706]' },
+                  { label: 'Active Blockers', value: health.blockers.length, cls: 'border-[rgba(202,47,43,0.2)] bg-[rgba(202,47,43,0.06)] text-[#ca2f2b]' },
                 ].map((m, i) => (
-                  <div key={i} style={{
-                    background: m.bg, border: `1px solid ${m.border}`, borderRadius: 12, padding: '20px',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <span style={{ fontSize: 32, fontWeight: 800, color: m.color, lineHeight: 1 }}>{m.value}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: m.color, marginTop: 8, opacity: 0.8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.label}</span>
+                  <div key={i} className={`flex flex-col items-center justify-center rounded-[12px] border p-5 ${m.cls}`}>
+                    <span className="text-[32px] font-extrabold leading-none">{m.value}</span>
+                    <span className="mt-2 text-xs font-bold uppercase tracking-[0.5px] opacity-80">{m.label}</span>
                   </div>
                 ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+              <div className="grid grid-cols-2 gap-8">
                 {/* Team */}
                 <div>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                    <Users size={18} color="var(--color-text-muted)" />
+                  <h3 className={SECTION_TITLE}>
+                    <Users size={18} className="text-text-muted" />
                     Team ({staff.length + (founder ? 1 : 0)})
                   </h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="flex flex-col gap-3">
                     {founder && (
-                      <div style={{
-                        background: 'rgba(2,132,199,0.03)', border: '1px solid rgba(2,132,199,0.15)',
-                        borderRadius: 10, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                      }}>
+                      <div className="flex items-center justify-between rounded-[10px] border border-[rgba(2,132,199,0.15)] bg-[rgba(2,132,199,0.03)] p-4">
                         <div>
-                          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)' }}>{founder.full_name}</p>
-                          <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-muted)', marginTop: 2 }}>{founder.email}</p>
+                          <p className="m-0 text-sm font-bold text-text-primary">{founder.full_name}</p>
+                          <p className="m-0 mt-0.5 text-[13px] text-text-muted">{founder.email}</p>
                         </div>
-                        <span style={{ fontSize: 10, fontWeight: 800, color: '#0284c7', background: 'rgba(2,132,199,0.1)', padding: '4px 10px', borderRadius: 999, letterSpacing: '0.5px' }}>
+                        <span className="rounded-full bg-info-dim px-2.5 py-1 text-[10px] font-extrabold tracking-[0.5px] text-info">
                           FOUNDER
                         </span>
                       </div>
                     )}
                     {staff.map((member) => (
-                      <div key={member.id} style={{
-                        background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                        borderRadius: 10, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                      }}>
+                      <div key={member.id} className="flex items-center justify-between rounded-[10px] border border-border bg-surface p-4">
                         <div>
-                          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{member.full_name}</p>
-                          <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-muted)', marginTop: 2 }}>{member.email}</p>
+                          <p className="m-0 text-sm font-semibold text-text-primary">{member.full_name}</p>
+                          <p className="m-0 mt-0.5 text-[13px] text-text-muted">{member.email}</p>
                         </div>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--color-text-muted)', background: 'var(--color-surface-2)', padding: '4px 10px', borderRadius: 999, letterSpacing: '0.5px' }}>
+                        <span className="rounded-full bg-surface-2 px-2.5 py-1 text-[10px] font-bold tracking-[0.5px] text-text-muted">
                           STAFF
                         </span>
                       </div>
@@ -179,34 +168,31 @@ export function StartupDetailClient({
 
                 {/* Domains */}
                 <div>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                    <Layers size={18} color="var(--color-text-muted)" />
+                  <h3 className={SECTION_TITLE}>
+                    <Layers size={18} className="text-text-muted" />
                     Domains ({domains.length})
                   </h3>
                   {domains.length > 0 ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+                    <div className="grid grid-cols-1 gap-3">
                       {domains.map((domain) => {
                         const domainTasks = tasks.filter((t) => t.domain_id === domain.id)
                         const domainHealth = health.domains.find((d) => d.id === domain.id)
                         return (
-                          <div key={domain.id} style={{
-                            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                            borderRadius: 10, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between'
-                          }}>
+                          <div key={domain.id} className="flex items-center justify-between rounded-[10px] border border-border bg-surface p-4">
                             <div>
-                              <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{domain.name}</h4>
-                              {domain.description && <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-muted)', marginTop: 4 }}>{domain.description}</p>}
+                              <h4 className="m-0 text-sm font-semibold text-text-primary">{domain.name}</h4>
+                              {domain.description && <p className="m-0 mt-1 text-[13px] text-text-muted">{domain.description}</p>}
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                              <span style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 500 }}>{domainTasks.length} tasks</span>
-                              {domainHealth && <span style={{ fontSize: 12, fontWeight: 700, color: '#059669' }}>{domainHealth.rate}% complete</span>}
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-xs font-medium text-text-muted">{domainTasks.length} tasks</span>
+                              {domainHealth && <span className="text-xs font-bold text-success">{domainHealth.rate}% complete</span>}
                             </div>
                           </div>
                         )
                       })}
                     </div>
                   ) : (
-                    <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>No domains defined.</p>
+                    <p className="text-sm text-text-muted">No domains defined.</p>
                   )}
                 </div>
               </div>
@@ -214,31 +200,28 @@ export function StartupDetailClient({
               {/* Current Weekly Plan */}
               {currentWeeklyPlan && (
                 <div>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                    <Calendar size={18} color="var(--color-text-muted)" />
+                  <h3 className={SECTION_TITLE}>
+                    <Calendar size={18} className="text-text-muted" />
                     Current Weekly Plan
                   </h3>
-                  <div style={{
-                    background: 'rgba(2,132,199,0.03)', border: '1px solid rgba(2,132,199,0.15)',
-                    borderRadius: 12, padding: 24, borderLeft: '4px solid #0284c7', position: 'relative'
-                  }}>
+                  <div className="relative rounded-[12px] border border-[rgba(2,132,199,0.15)] border-l-4 border-l-[#0284c7] bg-[rgba(2,132,199,0.03)] p-6">
                     <button
                       onClick={() => openNoteModal('WEEKLY_PLAN', currentWeeklyPlan.id, currentWeeklyPlan.title || 'Weekly Plan')}
-                      style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', cursor: 'pointer', padding: 8, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600 }}
+                      className="absolute right-4 top-4 flex cursor-pointer items-center gap-1.5 border-none bg-transparent p-2 text-xs font-semibold text-text-muted"
                       title="Flag Issue"
                     >
                       <MessageSquare size={14} /> Flag
                     </button>
                     {currentWeeklyPlan.title && (
-                      <h4 style={{ margin: '0 0 8px 0', fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                      <h4 className="m-0 mb-2 text-base font-bold text-text-primary">
                         {currentWeeklyPlan.title}
                       </h4>
                     )}
-                    <p style={{ margin: '0 0 12px 0', fontSize: 13, color: '#0284c7', fontWeight: 600 }}>
+                    <p className="m-0 mb-3 text-[13px] font-semibold text-info">
                       {new Date(currentWeeklyPlan.week_start).toLocaleDateString()} — {new Date(currentWeeklyPlan.week_end).toLocaleDateString()}
                     </p>
                     {currentWeeklyPlan.goal && (
-                      <p style={{ margin: 0, fontSize: 14, color: 'var(--color-text-primary)', fontStyle: 'italic', opacity: 0.8 }}>
+                      <p className="m-0 text-sm italic text-text-primary opacity-80">
                         {currentWeeklyPlan.goal}
                       </p>
                     )}
@@ -250,49 +233,42 @@ export function StartupDetailClient({
 
           {/* Tasks Tab */}
           {activeTab === 'tasks' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-              {['done', 'inProgress', 'todo'].map((status) => {
+            <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-3">
+              {['todo', 'inProgress', 'done'].map((status) => {
                 const statusTasks = tasksByStatus[status as keyof typeof tasksByStatus]
                 const statusLabels = { done: 'Done', inProgress: 'In Progress', todo: 'To Do' }
 
                 return (
-                  <div key={status}>
-                    <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div key={status} className="flex flex-col">
+                    <h3 className={SECTION_TITLE}>
                       {statusLabels[status as keyof typeof statusLabels]}
-                      <span style={{ fontSize: 12, background: 'var(--color-surface-2)', padding: '2px 8px', borderRadius: 999, color: 'var(--color-text-muted)' }}>{statusTasks.length}</span>
+                      <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-text-muted">{statusTasks.length}</span>
                     </h3>
                     {statusTasks.length > 0 ? (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
+                      <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto pr-1">
                         {statusTasks.map((task) => (
-                          <div key={task.id} style={{
-                            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-                            borderRadius: 10, padding: 16, display: 'flex', flexDirection: 'column', gap: 8, position: 'relative'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                              <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.4, flex: 1 }}>{task.title}</h4>
+                          <div key={task.id} className="relative flex flex-col gap-2 rounded-[10px] border border-border bg-surface p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <h4 className="m-0 flex-1 text-sm font-semibold leading-[1.4] text-text-primary">{task.title}</h4>
                               <button
                                 onClick={() => openNoteModal('TASK', task.id, task.title)}
-                                style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center' }}
+                                className="flex cursor-pointer items-center border-none bg-transparent p-1 text-text-muted"
                                 title="Flag this task"
                               >
                                 <MessageSquare size={14} />
                               </button>
                             </div>
                             {task.description && (
-                              <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-muted)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                              <p className="m-0 text-[13px] text-text-muted line-clamp-2">
                                 {task.description}
                               </p>
                             )}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 'auto', paddingTop: 8 }}>
-                              <span style={{
-                                fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 4, letterSpacing: '0.5px',
-                                color: task.priority === 'HIGH' ? '#ca2f2b' : task.priority === 'MEDIUM' ? '#d97706' : '#0284c7',
-                                background: task.priority === 'HIGH' ? 'rgba(202,47,43,0.1)' : task.priority === 'MEDIUM' ? 'rgba(217,119,6,0.1)' : 'rgba(2,132,199,0.1)',
-                              }}>
+                            <div className="mt-auto flex items-center gap-2 pt-2">
+                              <span className={`badge ${PRIORITY_BADGE[task.priority] || 'badge-neutral'}`}>
                                 {task.priority}
                               </span>
                               {task.due_date && (
-                                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                                <span className="text-[11px] font-medium text-text-muted">
                                   Due: {new Date(task.due_date).toLocaleDateString()}
                                 </span>
                               )}
@@ -301,7 +277,7 @@ export function StartupDetailClient({
                         ))}
                       </div>
                     ) : (
-                      <p style={{ fontSize: 14, color: 'var(--color-text-muted)', fontStyle: 'italic' }}>No {statusLabels[status as keyof typeof statusLabels].toLowerCase()} tasks.</p>
+                      <p className="text-sm italic text-text-muted">No {statusLabels[status as keyof typeof statusLabels].toLowerCase()} tasks.</p>
                     )}
                   </div>
                 )

@@ -25,6 +25,13 @@ import type { Startup, Task, Domain, StartupMember, Profile } from '@/types'
 const TAB_TYPES = ['overview', 'tasks', 'notes', 'trends'] as const
 type TabType = (typeof TAB_TYPES)[number]
 
+const HEALTH_BADGE_CLASS = {
+  Optimal: 'badge badge-success',
+  'On Track': 'badge badge-info',
+  Attention: 'badge badge-warning',
+  'At Risk': 'badge badge-danger',
+} as const
+
 interface Props {
   params: Promise<{ startupId: string }>
   searchParams: Promise<{ tab?: string }>
@@ -93,57 +100,42 @@ export default async function StartupDetailPage({ params, searchParams }: Props)
   const staff = teamMembers.filter((m) => m.role === 'STAFF')
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="flex flex-col gap-6 mx-auto w-full max-w-[1200px] px-8 py-6">
       {/* Back Navigation */}
       <Link
         href="/venture-manager"
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          color: 'var(--color-brand)', fontSize: 14, fontWeight: 600, textDecoration: 'none',
-          marginBottom: -8,
-        }}
+        className="inline-flex items-center gap-1.5 text-brand text-sm font-semibold no-underline -mb-2"
       >
         <ArrowLeft size={16} />
         Back to Portfolio
       </Link>
 
       {/* Startup Header */}
-      <div style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 16, padding: '24px 32px',
-        display: 'flex', alignItems: 'center', gap: 20,
-        boxShadow: 'var(--shadow-sm)',
-      }}>
+      <div className="card flex items-center gap-5">
         <CompanyLogo logoUrl={startup.logo_url} name={startup.name} size="lg" />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-text-primary)', margin: 0, letterSpacing: '-0.5px' }}>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-4">
+            <h1 className="m-0 text-[28px] font-extrabold tracking-[-0.5px] text-text-primary">
               {startup.name}
             </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{
-                fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 999,
-                color: health.status === 'Optimal' ? '#059669' : health.status === 'On Track' ? '#0284c7' : health.status === 'Attention' ? '#d97706' : '#ca2f2b',
-                background: health.status === 'Optimal' ? 'rgba(5,150,105,0.1)' : health.status === 'On Track' ? 'rgba(2,132,199,0.1)' : health.status === 'Attention' ? 'rgba(217,119,6,0.1)' : 'rgba(202,47,43,0.1)',
-                border: `1px solid ${health.status === 'Optimal' ? 'rgba(5,150,105,0.2)' : health.status === 'On Track' ? 'rgba(2,132,199,0.2)' : health.status === 'Attention' ? 'rgba(217,119,6,0.2)' : 'rgba(202,47,43,0.2)'}`
-              }}>
+            <div className="flex items-center gap-2">
+              <span className={HEALTH_BADGE_CLASS[health.status]}>
                 {health.status}
               </span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)' }}>
-                Health Score: <span style={{ color: 'var(--color-text-primary)' }}>{health.score}/100</span>
+              <span className="text-[13px] font-semibold text-text-muted">
+                Health Score: <span className="text-text-primary">{health.score}/100</span>
               </span>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 32, marginTop: 12 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Email</span>
-              <span style={{ fontSize: 14, color: 'var(--color-text-primary)', fontWeight: 500 }}>{startup.email}</span>
+          <div className="flex items-center gap-8 mt-3">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-text-muted">Email</span>
+              <span className="text-sm font-medium text-text-primary">{startup.email}</span>
             </div>
             {startup.phone && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Phone</span>
-                <span style={{ fontSize: 14, color: 'var(--color-text-primary)', fontWeight: 500 }}>{startup.phone}</span>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.5px] text-text-muted">Phone</span>
+                <span className="text-sm font-medium text-text-primary">{startup.phone}</span>
               </div>
             )}
           </div>
@@ -172,10 +164,10 @@ export default async function StartupDetailPage({ params, searchParams }: Props)
 
 function TabSkeleton() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ height: 24, width: 180, borderRadius: 8, background: 'var(--color-surface-2)' }} />
+    <div className="flex flex-col gap-4">
+      <div className="skeleton h-6 w-[180px]" />
       {[0, 1, 2].map((i) => (
-        <div key={i} style={{ height: 96, borderRadius: 10, background: 'var(--color-surface-2)' }} />
+        <div key={i} className="skeleton h-24 w-full" />
       ))}
     </div>
   )
