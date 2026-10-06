@@ -133,6 +133,38 @@ export function StartupDetailClient({
                 ))}
               </div>
 
+                            {/* Current Weekly Plan */}
+              {currentWeeklyPlan && (
+                <div>
+                  <h3 className={SECTION_TITLE}>
+                    <Calendar size={18} className="text-text-muted" />
+                    Current Weekly Plan
+                  </h3>
+                  <div className="relative rounded-[12px] border border-[rgba(2,132,199,0.15)] border-l-4 border-l-[#0284c7] bg-[rgba(2,132,199,0.03)] p-6">
+                    <button
+                      onClick={() => openNoteModal('WEEKLY_PLAN', currentWeeklyPlan.id, currentWeeklyPlan.title || 'Weekly Plan')}
+                      className="absolute right-4 top-4 flex cursor-pointer items-center gap-1.5 border-none bg-transparent p-2 text-xs font-semibold text-text-muted"
+                      title="Flag Issue"
+                    >
+                      <MessageSquare size={14} /> Flag
+                    </button>
+                    {currentWeeklyPlan.title && (
+                      <h4 className="m-0 mb-2 text-base font-bold text-text-primary">
+                        {currentWeeklyPlan.title}
+                      </h4>
+                    )}
+                    <p className="m-0 mb-3 text-[13px] font-semibold text-info">
+                      {new Date(currentWeeklyPlan.week_start).toLocaleDateString()} — {new Date(currentWeeklyPlan.week_end).toLocaleDateString()}
+                    </p>
+                    {currentWeeklyPlan.goal && (
+                      <p className="m-0 text-sm italic text-text-primary opacity-80">
+                        {currentWeeklyPlan.goal}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-8">
                 {/* Team */}
                 <div>
@@ -196,38 +228,6 @@ export function StartupDetailClient({
                   )}
                 </div>
               </div>
-
-              {/* Current Weekly Plan */}
-              {currentWeeklyPlan && (
-                <div>
-                  <h3 className={SECTION_TITLE}>
-                    <Calendar size={18} className="text-text-muted" />
-                    Current Weekly Plan
-                  </h3>
-                  <div className="relative rounded-[12px] border border-[rgba(2,132,199,0.15)] border-l-4 border-l-[#0284c7] bg-[rgba(2,132,199,0.03)] p-6">
-                    <button
-                      onClick={() => openNoteModal('WEEKLY_PLAN', currentWeeklyPlan.id, currentWeeklyPlan.title || 'Weekly Plan')}
-                      className="absolute right-4 top-4 flex cursor-pointer items-center gap-1.5 border-none bg-transparent p-2 text-xs font-semibold text-text-muted"
-                      title="Flag Issue"
-                    >
-                      <MessageSquare size={14} /> Flag
-                    </button>
-                    {currentWeeklyPlan.title && (
-                      <h4 className="m-0 mb-2 text-base font-bold text-text-primary">
-                        {currentWeeklyPlan.title}
-                      </h4>
-                    )}
-                    <p className="m-0 mb-3 text-[13px] font-semibold text-info">
-                      {new Date(currentWeeklyPlan.week_start).toLocaleDateString()} — {new Date(currentWeeklyPlan.week_end).toLocaleDateString()}
-                    </p>
-                    {currentWeeklyPlan.goal && (
-                      <p className="m-0 text-sm italic text-text-primary opacity-80">
-                        {currentWeeklyPlan.goal}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           )}
 

@@ -1,10 +1,23 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useState, startTransition } from 'react'
 import { createTask, updateTaskStatus, deleteTask } from '@/features/tasks/actions'
 import { DomainSelectWithQuickAdd } from '@/components/domains/DomainSelectWithQuickAdd'
 import { TaskEditModal, type StaffMemberOption } from '@/components/tasks/TaskEditModal'
 import type { ActionState, Task, Domain, WeeklyPlan } from '@/types'
+import { 
+  Pencil, 
+  Play, 
+  CheckCircle, 
+  RotateCcw, 
+  Trash2, 
+  Calendar, 
+  User,
+  ClipboardList,
+  Rocket,
+  CheckCheck,
+  MoreVertical
+} from 'lucide-react'
 
 interface StaffMemberEntry {
   user_id: string
@@ -46,12 +59,9 @@ export function TasksClient({
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [filterStatus, setFilterStatus] = useState<string>('ALL')
   const [filterDomain, setFilterDomain] = useState<string>('ALL')
-
-  const statusColors: Record<string, string> = {
-    TODO: 'badge-neutral',
-    IN_PROGRESS: 'badge-info',
-    DONE: 'badge-success',
-  }
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [draggedTask, setDraggedTask] = useState<Task | null>(null)
+  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null)
 
   const priorityColors: Record<string, string> = {
     LOW: 'badge-neutral',
@@ -59,25 +69,233 @@ export function TasksClient({
     HIGH: 'badge-danger',
   }
 
+  // Filter by status and domain
   const filteredTasks = tasks.filter((t) => {
     const statusMatch = filterStatus === 'ALL' || t.status === filterStatus
     const domainMatch = filterDomain === 'ALL' || t.domain_id === filterDomain
     return statusMatch && domainMatch
   })
 
+  // Organize tasks by status
+  const todoTasks = filteredTasks.filter((t) => t.status === 'TODO')
+  const inProgressTasks = filteredTasks.filter((t) => t.status === 'IN_PROGRESS')
+  const doneTasks = filteredTasks.filter((t) => t.status === 'DONE')
+
   const todoCt = tasks.filter((t) => t.status === 'TODO').length
   const ipCt = tasks.filter((t) => t.status === 'IN_PROGRESS').length
   const doneCt = tasks.filter((t) => t.status === 'DONE').length
 
+  // Drag and drop handlers
+  const handleDragStart = (task: Task) => {
+    setDraggedTask(task)
+    setOpenDropdown(null) // Close any open dropdown when dragging starts
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTask(null)
+    setDragOverColumn(null)
+  }
+
+  const handleDragOver = (e: React.DragEvent, columnStatus: string) => {
+    e.preventDefault()
+    setDragOverColumn(columnStatus)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverColumn(null)
+  }
+
+  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
+    e.preventDefault()
+    setDragOverColumn(null)
+
+    if (!draggedTask || draggedTask.status === newStatus) {
+      setDraggedTask(null)
+      return
+    }
+
+    // Update status in background using FormData wrapped in startTransition
+    const formData = new FormData()
+    formData.append('task_id', draggedTask.id)
+    formData.append('status', newStatus)
+
+    // Call the action within a transition for proper React state handling
+    startTransition(() => {
+      statusAction(formData)
+    })
+    
+    setDraggedTask(null)
+  }
+
+  // Helper to render a task card
+  const renderTaskCard = (task: Task) => {
+    const domainName = domains.find((d) => d.id === task.domain_id)?.name
+    const assignedMember = staffMembers.find((m) => m.user_id === task.assigned_to)
+    const isOpen = openDropdown === task.id
+    const isDragging = draggedTask?.id === task.id
+
+    return (
+      <div 
+        key={task.id} 
+        className={`task-card ${task.status === 'DONE' ? 'done' : ''} ${isDragging ? 'dragging' : ''}`} 
+        style={{ marginBottom: 12, cursor: 'grab' }}
+        draggable
+        onDragStart={() => handleDragStart(task)}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="task-card-header">
+          <div className="task-card-content">
+            <div className="task-card-title">
+              {task.title}
+            </div>
+            {task.description && (
+              <div className="task-card-description">
+                {task.description}
+              </div>
+            )}
+            <div className="task-card-badges">
+              <span className={`badge ${priorityColors[task.priority] || 'badge-neutral'}`} style={{ fontSize: 10 }}>
+                {task.priority}
+              </span>
+              {domainName && <span className="badge badge-info" style={{ fontSize: 10 }}>{domainName}</span>}
+              {task.completion_status && (
+                <span className={`badge ${task.completion_status === 'EARLY' ? 'badge-success' : task.completion_status === 'ON_TIME' ? 'badge-info' : 'badge-warning'}`} style={{ fontSize: 10 }}>
+                  {task.completion_status}
+                </span>
+              )}
+            </div>
+            {task.due_date && (
+              <div className="task-card-meta">
+                <Calendar size={12} />
+                <span>Due {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+              </div>
+            )}
+            {assignedMember?.profile && (
+              <div className="task-card-meta">
+                <User size={12} />
+                <span>{assignedMember.profile.full_name}</span>
+              </div>
+            )}
+          </div>
+
+          {/* More button with dropdown */}
+          <div className="dropdown-container task-card-actions">
+            <button
+              type="button"
+              onClick={() => setOpenDropdown(isOpen ? null : task.id)}
+              className="btn btn-ghost btn-sm btn-icon"
+              title="More actions"
+            >
+              <MoreVertical size={16} />
+            </button>
+
+            {isOpen && (
+              <>
+                <div 
+                  className="dropdown-backdrop"
+                  onClick={() => setOpenDropdown(null)}
+                />
+                
+                <div className="dropdown-menu">
+                  {/* Edit option */}
+                  {canEditTask(task) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingTask(task)
+                        setOpenDropdown(null)
+                      }}
+                      className="dropdown-item"
+                    >
+                      <Pencil size={14} />
+                      <span>Edit Task</span>
+                    </button>
+                  )}
+
+                  {/* Status change options */}
+                  {task.status === 'TODO' && (
+                    <form action={statusAction} onSubmit={() => setOpenDropdown(null)} style={{ margin: 0 }}>
+                      <input type="hidden" name="task_id" value={task.id} />
+                      <button
+                        type="submit"
+                        name="status"
+                        value="IN_PROGRESS"
+                        disabled={statusPending}
+                        className="dropdown-item dropdown-item-info"
+                      >
+                        <Play size={14} />
+                        <span>Start Task</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {task.status === 'IN_PROGRESS' && (
+                    <form action={statusAction} onSubmit={() => setOpenDropdown(null)} style={{ margin: 0 }}>
+                      <input type="hidden" name="task_id" value={task.id} />
+                      <button
+                        type="submit"
+                        name="status"
+                        value="DONE"
+                        disabled={statusPending}
+                        className="dropdown-item dropdown-item-success"
+                      >
+                        <CheckCircle size={14} />
+                        <span>Mark as Done</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {task.status === 'DONE' && (
+                    <form action={statusAction} onSubmit={() => setOpenDropdown(null)} style={{ margin: 0 }}>
+                      <input type="hidden" name="task_id" value={task.id} />
+                      <button
+                        type="submit"
+                        name="status"
+                        value="TODO"
+                        disabled={statusPending}
+                        className="dropdown-item"
+                      >
+                        <RotateCcw size={14} />
+                        <span>Reopen Task</span>
+                      </button>
+                    </form>
+                  )}
+
+                  {/* Delete option */}
+                  {canDeleteTask && (
+                    <>
+                      <div className="dropdown-divider" />
+                      <form action={deleteAction} onSubmit={() => setOpenDropdown(null)} style={{ margin: 0 }}>
+                        <input type="hidden" name="id" value={task.id} />
+                        <button
+                          type="submit"
+                          disabled={deletePending}
+                          className="dropdown-item dropdown-item-danger"
+                        >
+                          <Trash2 size={14} />
+                          <span>Delete Task</span>
+                        </button>
+                      </form>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
       {(createState?.error || statusState?.error || deleteState?.error) && (
-        <div className="alert alert-error" style={{ marginBottom: 20 }}>
+        <div className="alert alert-error mb-20">
           {createState?.error || statusState?.error || deleteState?.error}
         </div>
       )}
       {(createState?.success || statusState?.success || deleteState?.success) && (
-        <div className="alert alert-success" style={{ marginBottom: 20 }}>
+        <div className="alert alert-success mb-20">
           {createState?.success || statusState?.success || deleteState?.success}
         </div>
       )}
@@ -221,91 +439,97 @@ export function TasksClient({
         </div>
       )}
 
-      {/* Task list */}
-      {filteredTasks.length === 0 ? (
+      {/* Kanban Board */}
+      {tasks.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
-          <h3>No tasks found</h3>
+          <h3>No tasks yet</h3>
           <p>Create a task to start tracking work</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {filteredTasks.map((task) => {
-            const domainName = domains.find((d) => d.id === task.domain_id)?.name
-            const assignedMember = staffMembers.find((m) => m.user_id === task.assigned_to)
-
-            return (
-              <div key={task.id} className={`task-card ${task.status === 'DONE' ? 'done' : ''}`}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8 }}>
-                      {task.title}
-                    </div>
-                    {task.description && (
-                      <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                        {task.description}
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span className={`badge ${statusColors[task.status] || 'badge-neutral'}`}>{task.status}</span>
-                      <span className={`badge ${priorityColors[task.priority] || 'badge-neutral'}`}>{task.priority}</span>
-                      {domainName && <span className="badge badge-info">{domainName}</span>}
-                      {task.completion_status && (
-                        <span className={`badge ${task.completion_status === 'EARLY' ? 'badge-success' : task.completion_status === 'ON_TIME' ? 'badge-info' : 'badge-warning'}`}>
-                          {task.completion_status}
-                        </span>
-                      )}
-                      {task.due_date && (
-                        <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                          Due {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </span>
-                      )}
-                      {assignedMember?.profile && (
-                        <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                          → {assignedMember.profile.full_name} {assignedMember.profile.email ? `(${assignedMember.profile.email})` : ''}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>
-                    {canEditTask(task) && (
-                      <button
-                        type="button"
-                        onClick={() => setEditingTask(task)}
-                        className="btn btn-secondary btn-sm"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                        title="Edit task"
-                      >
-                        ✏️ Edit
-                      </button>
-                    )}
-                    {task.status !== 'DONE' && (
-                      <form action={statusAction} style={{ display: 'flex', gap: 6 }}>
-                        <input type="hidden" name="task_id" value={task.id} />
-                        {task.status === 'TODO' && (
-                          <button type="submit" name="status" value="IN_PROGRESS" className="btn btn-secondary btn-sm" disabled={statusPending}>
-                            Start
-                          </button>
-                        )}
-                        <button type="submit" name="status" value="DONE" className="btn btn-primary btn-sm" disabled={statusPending}>
-                          ✓ Done
-                        </button>
-                      </form>
-                    )}
-                    {canDeleteTask && (
-                      <form action={deleteAction}>
-                        <input type="hidden" name="id" value={task.id} />
-                        <button type="submit" className="btn btn-ghost btn-sm btn-icon" disabled={deletePending} style={{ color: 'var(--color-danger)' }} title="Delete task">
-                          ✕
-                        </button>
-                      </form>
-                    )}
-                  </div>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
+          gap: 20,
+          alignItems: 'start'
+        }}>
+          {/* TODO Column */}
+          <div 
+            className={`kanban-column ${dragOverColumn === 'TODO' ? 'drag-over' : ''}`}
+            style={{ minHeight: 400 }}
+            onDragOver={(e) => handleDragOver(e, 'TODO')}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, 'TODO')}
+          >
+            <div className="kanban-column-header">
+              <h3 className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                <ClipboardList size={16} />
+                <span>TODO</span>
+              </h3>
+              <span className="badge badge-neutral">{todoTasks.length}</span>
+            </div>
+            <div>
+              {todoTasks.length === 0 ? (
+                <div className="kanban-empty-state">
+                  {dragOverColumn === 'TODO' ? 'Drop here' : 'No tasks to do'}
                 </div>
-              </div>
-            )
-          })}
+              ) : (
+                todoTasks.map(renderTaskCard)
+              )}
+            </div>
+          </div>
+
+          {/* IN PROGRESS Column */}
+          <div 
+            className={`kanban-column ${dragOverColumn === 'IN_PROGRESS' ? 'drag-over' : ''}`}
+            style={{ minHeight: 400 }}
+            onDragOver={(e) => handleDragOver(e, 'IN_PROGRESS')}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, 'IN_PROGRESS')}
+          >
+            <div className="kanban-column-header" style={{ borderBottomColor: 'var(--color-info)' }}>
+              <h3 className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                <Rocket size={16} />
+                <span>IN PROGRESS</span>
+              </h3>
+              <span className="badge badge-info">{inProgressTasks.length}</span>
+            </div>
+            <div>
+              {inProgressTasks.length === 0 ? (
+                <div className="kanban-empty-state">
+                  {dragOverColumn === 'IN_PROGRESS' ? 'Drop here' : 'No tasks in progress'}
+                </div>
+              ) : (
+                inProgressTasks.map(renderTaskCard)
+              )}
+            </div>
+          </div>
+
+          {/* DONE Column */}
+          <div 
+            className={`kanban-column ${dragOverColumn === 'DONE' ? 'drag-over' : ''}`}
+            style={{ minHeight: 400 }}
+            onDragOver={(e) => handleDragOver(e, 'DONE')}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, 'DONE')}
+          >
+            <div className="kanban-column-header" style={{ borderBottomColor: 'var(--color-success)' }}>
+              <h3 className="kanban-column-title" style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                <CheckCheck size={16} />
+                <span>DONE</span>
+              </h3>
+              <span className="badge badge-success">{doneTasks.length}</span>
+            </div>
+            <div>
+              {doneTasks.length === 0 ? (
+                <div className="kanban-empty-state">
+                  {dragOverColumn === 'DONE' ? 'Drop here' : 'No completed tasks'}
+                </div>
+              ) : (
+                doneTasks.map(renderTaskCard)
+              )}
+            </div>
+          </div>
         </div>
       )}
 
