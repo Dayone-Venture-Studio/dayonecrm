@@ -302,6 +302,107 @@ export async function deleteTask(
   return { success: 'Task deleted' }
 }
 
+export async function updateTaskStatusOptimistic(
+  taskId: string,
+  newStatus: 'TODO' | 'IN_PROGRESS' | 'DONE',
+  startupId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Unauthorized' }
+
+    // Get only the fields we need for business logic
+    const { data: task, error: fetchError } = await supabase
+      .from('tasks')
+      .select('id, status, due_date, started_at, weekly_plan_id, title')
+      .eq('id', taskId)
+      .single()
+
+    if (fetchError || !task) {
+      return { success: false, error: 'Task not found' }
+    }
+
+    // Prepare updates
+    const updates: Record<string, unknown> = { status: newStatus }
+
+    if (newStatus === 'IN_PROGRESS' && !task.started_at) {
+      updates.started_at = new Date().toISOString()
+    }
+
+    if (newStatus === 'DONE') {
+      const completedAt = new Date().toISOString()
+      updates.completed_at = completedAt
+      if (!task.started_at) {
+        updates.started_at = completedAt
+      }
+
+      if (task.due_date) {
+        updates.completion_status = calculateTaskCompletionStatus(completedAt, task.due_date)
+      }
+    } else {
+      // Uncompleting a task — clear completion data
+      updates.completed_at = null
+      updates.completion_status = null
+    }
+
+    // Update task status
+    const { error: updateError } = await supabase
+      .from('tasks')
+      .update(updates)
+      .eq('id', taskId)
+
+    if (updateError) {
+      return { success: false, error: 'Failed to update task status' }
+    }
+
+    // Fire-and-forget: Heavy operations run asynchronously without blocking the response
+    Promise.resolve().then(async () => {
+      try {
+        // Log activity in background
+        if (newStatus === 'DONE') {
+          await logActivity({
+            startupId,
+            action: 'COMPLETED_TASK',
+            entityType: 'task',
+            entityId: taskId,
+            metadata: {
+              title: task.title,
+              completion_status: updates.completion_status,
+            },
+          })
+        } else {
+          await logActivity({
+            startupId,
+            action: 'UPDATED_TASK_STATUS',
+            entityType: 'task',
+            entityId: taskId,
+            metadata: { title: task.title, new_status: newStatus },
+          })
+        }
+
+        // Recalculate weekly performance in background if part of a plan
+        if (newStatus === 'DONE' && task.weekly_plan_id) {
+          await recalculateWeeklyPerformance(startupId, task.weekly_plan_id)
+        }
+      } catch (err) {
+        // Log but don't propagate errors from background operations
+        console.error('Background operation failed:', err)
+      }
+    })
+
+    // Reduced revalidation: Only the essential paths
+    revalidatePath('/founder/tasks')
+    revalidatePath('/staff/tasks')
+    revalidatePath('/tv')
+
+    return { success: true }
+  } catch (err) {
+    console.error('updateTaskStatusOptimistic error:', err)
+    return { success: false, error: 'An unexpected error occurred' }
+  }
+}
+
 /**
  * Recalculates and upserts weekly_performance for a given plan.
  * Called automatically when a task is completed.
