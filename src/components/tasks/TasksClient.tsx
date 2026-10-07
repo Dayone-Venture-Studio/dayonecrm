@@ -1,7 +1,7 @@
 'use client'
 
-import { useActionState, useState, startTransition } from 'react'
-import { createTask, updateTaskStatus, deleteTask } from '@/features/tasks/actions'
+import { useActionState, useState, useOptimistic, useTransition } from 'react'
+import { createTask, updateTaskStatus, deleteTask, updateTaskStatusOptimistic } from '@/features/tasks/actions'
 import { DomainSelectWithQuickAdd } from '@/components/domains/DomainSelectWithQuickAdd'
 import { TaskEditModal, type StaffMemberOption } from '@/components/tasks/TaskEditModal'
 import type { ActionState, Task, Domain, WeeklyPlan } from '@/types'
@@ -51,9 +51,24 @@ export function TasksClient({
   const canCreateTask = isFounder || isStaff
   const canEditTask = (task: Task) => isFounder || (isStaff && task.created_by === currentUserId)
   const canDeleteTask = isFounder
+  
   const [createState, createAction, createPending] = useActionState<ActionState, FormData>(createTask, {})
-  const [statusState, statusAction, statusPending] = useActionState<ActionState, FormData>(updateTaskStatus, {})
   const [deleteState, deleteAction, deletePending] = useActionState<ActionState, FormData>(deleteTask, {})
+
+  // Optimistic state for task status updates
+  const [optimisticTasks, updateOptimisticTasks] = useOptimistic(
+    tasks,
+    (currentTasks, updatedTask: { id: string; status: string }) => {
+      return currentTasks.map((task) =>
+        task.id === updatedTask.id
+          ? { ...task, status: updatedTask.status as Task['status'] }
+          : task
+      )
+    }
+  )
+  
+  const [isPending, startTransition] = useTransition()
+  const [pendingUpdates, setPendingUpdates] = useState<Set<string>>(new Set())
 
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -69,8 +84,8 @@ export function TasksClient({
     HIGH: 'badge-danger',
   }
 
-  // Filter by status and domain
-  const filteredTasks = tasks.filter((t) => {
+  // Filter by status and domain (using optimistic tasks)
+  const filteredTasks = optimisticTasks.filter((t) => {
     const statusMatch = filterStatus === 'ALL' || t.status === filterStatus
     const domainMatch = filterDomain === 'ALL' || t.domain_id === filterDomain
     return statusMatch && domainMatch
@@ -81,9 +96,55 @@ export function TasksClient({
   const inProgressTasks = filteredTasks.filter((t) => t.status === 'IN_PROGRESS')
   const doneTasks = filteredTasks.filter((t) => t.status === 'DONE')
 
-  const todoCt = tasks.filter((t) => t.status === 'TODO').length
-  const ipCt = tasks.filter((t) => t.status === 'IN_PROGRESS').length
-  const doneCt = tasks.filter((t) => t.status === 'DONE').length
+  const todoCt = optimisticTasks.filter((t) => t.status === 'TODO').length
+  const ipCt = optimisticTasks.filter((t) => t.status === 'IN_PROGRESS').length
+  const doneCt = optimisticTasks.filter((t) => t.status === 'DONE').length
+
+  // Handler for optimistic status updates with race condition protection
+  const handleStatusChange = async (taskId: string, newStatus: Task['status']) => {
+    const originalTask = optimisticTasks.find((t) => t.id === taskId)
+    if (!originalTask || originalTask.status === newStatus) return
+
+    // Prevent concurrent updates on the same task
+    if (pendingUpdates.has(taskId)) {
+      console.warn(`Update already pending for task ${taskId}`)
+      return
+    }
+
+    // Mark task as pending
+    setPendingUpdates((prev) => new Set(prev).add(taskId))
+
+    // Optimistically update the UI
+    startTransition(() => {
+      updateOptimisticTasks({ id: taskId, status: newStatus })
+    })
+
+    try {
+      // Call the server action
+      const result = await updateTaskStatusOptimistic(taskId, newStatus, startupId)
+
+      // Handle errors - revert and log
+      if (!result.success) {
+        startTransition(() => {
+          updateOptimisticTasks({ id: taskId, status: originalTask.status })
+        })
+        console.error('Failed to update task status:', result.error)
+      }
+    } catch (error) {
+      // Handle unexpected errors
+      startTransition(() => {
+        updateOptimisticTasks({ id: taskId, status: originalTask.status })
+      })
+      console.error('handleStatusChange error:', error)
+    } finally {
+      // Remove task from pending set
+      setPendingUpdates((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(taskId)
+        return newSet
+      })
+    }
+  }
 
   // Drag and drop handlers
   const handleDragStart = (task: Task) => {
@@ -114,15 +175,8 @@ export function TasksClient({
       return
     }
 
-    // Update status in background using FormData wrapped in startTransition
-    const formData = new FormData()
-    formData.append('task_id', draggedTask.id)
-    formData.append('status', newStatus)
-
-    // Call the action within a transition for proper React state handling
-    startTransition(() => {
-      statusAction(formData)
-    })
+    // Use optimistic update handler
+    await handleStatusChange(draggedTask.id, newStatus as Task['status'])
     
     setDraggedTask(null)
   }
@@ -133,13 +187,14 @@ export function TasksClient({
     const assignedMember = staffMembers.find((m) => m.user_id === task.assigned_to)
     const isOpen = openDropdown === task.id
     const isDragging = draggedTask?.id === task.id
+    const isPendingUpdate = pendingUpdates.has(task.id)
 
     return (
       <div 
         key={task.id} 
-        className={`task-card ${task.status === 'DONE' ? 'done' : ''} ${isDragging ? 'dragging' : ''}`} 
-        style={{ marginBottom: 12, cursor: 'grab' }}
-        draggable
+        className={`task-card ${task.status === 'DONE' ? 'done' : ''} ${isDragging ? 'dragging' : ''} ${isPendingUpdate ? 'updating' : ''}`} 
+        style={{ marginBottom: 12, cursor: 'grab', opacity: isPendingUpdate ? 0.7 : 1 }}
+        draggable={!isPendingUpdate}
         onDragStart={() => handleDragStart(task)}
         onDragEnd={handleDragEnd}
       >
@@ -214,51 +269,48 @@ export function TasksClient({
 
                   {/* Status change options */}
                   {task.status === 'TODO' && (
-                    <form action={statusAction} onSubmit={() => setOpenDropdown(null)} style={{ margin: 0 }}>
-                      <input type="hidden" name="task_id" value={task.id} />
-                      <button
-                        type="submit"
-                        name="status"
-                        value="IN_PROGRESS"
-                        disabled={statusPending}
-                        className="dropdown-item dropdown-item-info"
-                      >
-                        <Play size={14} />
-                        <span>Start Task</span>
-                      </button>
-                    </form>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setOpenDropdown(null)
+                        await handleStatusChange(task.id, 'IN_PROGRESS')
+                      }}
+                      disabled={isPendingUpdate}
+                      className="dropdown-item dropdown-item-info"
+                    >
+                      <Play size={14} />
+                      <span>Start Task</span>
+                    </button>
                   )}
 
                   {task.status === 'IN_PROGRESS' && (
-                    <form action={statusAction} onSubmit={() => setOpenDropdown(null)} style={{ margin: 0 }}>
-                      <input type="hidden" name="task_id" value={task.id} />
-                      <button
-                        type="submit"
-                        name="status"
-                        value="DONE"
-                        disabled={statusPending}
-                        className="dropdown-item dropdown-item-success"
-                      >
-                        <CheckCircle size={14} />
-                        <span>Mark as Done</span>
-                      </button>
-                    </form>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setOpenDropdown(null)
+                        await handleStatusChange(task.id, 'DONE')
+                      }}
+                      disabled={isPendingUpdate}
+                      className="dropdown-item dropdown-item-success"
+                    >
+                      <CheckCircle size={14} />
+                      <span>Mark as Done</span>
+                    </button>
                   )}
 
                   {task.status === 'DONE' && (
-                    <form action={statusAction} onSubmit={() => setOpenDropdown(null)} style={{ margin: 0 }}>
-                      <input type="hidden" name="task_id" value={task.id} />
-                      <button
-                        type="submit"
-                        name="status"
-                        value="TODO"
-                        disabled={statusPending}
-                        className="dropdown-item"
-                      >
-                        <RotateCcw size={14} />
-                        <span>Reopen Task</span>
-                      </button>
-                    </form>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setOpenDropdown(null)
+                        await handleStatusChange(task.id, 'TODO')
+                      }}
+                      disabled={isPendingUpdate}
+                      className="dropdown-item"
+                    >
+                      <RotateCcw size={14} />
+                      <span>Reopen Task</span>
+                    </button>
                   )}
 
                   {/* Delete option */}
@@ -289,44 +341,19 @@ export function TasksClient({
 
   return (
     <div>
-      {(createState?.error || statusState?.error || deleteState?.error) && (
+      {(createState?.error || deleteState?.error) && (
         <div className="alert alert-error mb-20">
-          {createState?.error || statusState?.error || deleteState?.error}
+          {createState?.error || deleteState?.error}
         </div>
       )}
-      {(createState?.success || statusState?.success || deleteState?.success) && (
+      {(createState?.success || deleteState?.success) && (
         <div className="alert alert-success mb-20">
-          {createState?.success || statusState?.success || deleteState?.success}
+          {createState?.success || deleteState?.success}
         </div>
       )}
-
-      {/* Stats row */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
-        {[
-          { label: 'Todo', value: todoCt, badge: 'badge-neutral' },
-          { label: 'In Progress', value: ipCt, badge: 'badge-info' },
-          { label: 'Done', value: doneCt, badge: 'badge-success' },
-        ].map((s) => (
-          <div key={s.label} className="stat-card" style={{ padding: '12px 20px', flex: 1, minWidth: 100 }}>
-            <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--color-text-primary)' }}>{s.value}</div>
-            <span className={`badge ${s.badge}`} style={{ marginTop: 4, display: 'inline-flex' }}>{s.label}</span>
-          </div>
-        ))}
-      </div>
 
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="input"
-          style={{ width: 'auto', minWidth: 140 }}
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="TODO">Todo</option>
-          <option value="IN_PROGRESS">In Progress</option>
-          <option value="DONE">Done</option>
-        </select>
         <select
           value={filterDomain}
           onChange={(e) => setFilterDomain(e.target.value)}
@@ -440,7 +467,7 @@ export function TasksClient({
       )}
 
       {/* Kanban Board */}
-      {tasks.length === 0 ? (
+      {optimisticTasks.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
           <h3>No tasks yet</h3>
