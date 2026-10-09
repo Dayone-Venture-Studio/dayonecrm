@@ -1,13 +1,16 @@
+import { Suspense, cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/getSession'
 import { getMembershipForUser } from '@/lib/startups/queries'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { TextSkeleton } from '@/components/layout/LoadingStates'
+import { DashboardSkeleton } from '@/components/layout/DashboardSkeleton'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'My Dashboard' }
 
-export default async function StaffDashboard() {
+const getStaffDashboardData = cache(async () => {
   const session = await getSession()
   const supabase = await createClient()
 
@@ -16,27 +19,30 @@ export default async function StaffDashboard() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  // Get weekly plans for this startup
-  const { data: weeklyPlans } = startupId
-    ? await supabase
-        .from('weekly_plans')
-        .select('*')
-        .eq('startup_id', startupId)
-        .order('week_start', { ascending: false })
-    : { data: [] }
+  // Get weekly plans for this startup and this user's tasks in parallel
+  const [weeklyPlansRes, myTasksRes] = await Promise.all([
+    startupId
+      ? supabase
+          .from('weekly_plans')
+          .select('*')
+          .eq('startup_id', startupId)
+          .order('week_start', { ascending: false })
+      : Promise.resolve({ data: [] as any[] }),
+    supabase
+      .from('tasks')
+      .select('*, domain:domains(id, name)')
+      .or(`assigned_to.eq.${session!.id},created_by.eq.${session!.id}`)
+      .order('created_at', { ascending: false }),
+  ])
+
+  const weeklyPlans = weeklyPlansRes.data
+  const myTasks = myTasksRes.data
 
   // Current plan or most recent plan
   const currentPlan =
     weeklyPlans?.find((p) => p.week_start <= today && p.week_end >= today) ||
     weeklyPlans?.[0] ||
     null
-
-  // Get tasks assigned to or created by this user, with domain
-  const { data: myTasks } = await supabase
-    .from('tasks')
-    .select('*, domain:domains(id, name)')
-    .or(`assigned_to.eq.${session!.id},created_by.eq.${session!.id}`)
-    .order('created_at', { ascending: false })
 
   const taskStats = {
     total: myTasks?.length || 0,
@@ -54,22 +60,37 @@ export default async function StaffDashboard() {
   const activeTasks = (myTasks || []).filter((t) => t.status !== 'DONE')
   const completedTasks = (myTasks || []).filter((t) => t.status === 'DONE')
 
-  const statusColors: Record<string, string> = {
-    TODO: 'badge-neutral',
-    IN_PROGRESS: 'badge-info',
-    DONE: 'badge-success',
+  return {
+    firstName: session!.full_name.split(' ')[0],
+    currentPlan,
+    taskStats,
+    completionRate,
+    activeTasks,
+    completedTasks,
   }
+})
 
-  const priorityColors: Record<string, string> = {
-    LOW: 'badge-neutral',
-    MEDIUM: 'badge-warning',
-    HIGH: 'badge-danger',
-  }
+const statusColors: Record<string, string> = {
+  TODO: 'badge-neutral',
+  IN_PROGRESS: 'badge-info',
+  DONE: 'badge-success',
+}
 
+const priorityColors: Record<string, string> = {
+  LOW: 'badge-neutral',
+  MEDIUM: 'badge-warning',
+  HIGH: 'badge-danger',
+}
+
+export default function StaffDashboard() {
   return (
     <div>
       <PageHeader
-        title={`Hey, ${session!.full_name.split(' ')[0]} 👋`}
+        title={
+          <Suspense fallback={<TextSkeleton width={200} />}>
+            <StaffGreeting />
+          </Suspense>
+        }
         subtitle={"Here's your deliverables and sprint progress"}
         actions={
           <div style={{ display: 'flex', gap: 8 }}>
@@ -83,6 +104,26 @@ export default async function StaffDashboard() {
         }
       />
 
+      <Suspense fallback={<DashboardSkeleton />}>
+        <StaffDashboardContent />
+      </Suspense>
+    </div>
+  )
+}
+
+async function StaffGreeting() {
+  const { firstName } = await getStaffDashboardData()
+  return <>Hey, {firstName} 👋</>
+}
+
+async function StaffDashboardContent() {
+  const { currentPlan, taskStats, completionRate, activeTasks, completedTasks } =
+    await getStaffDashboardData()
+
+  const today = new Date().toISOString().split('T')[0]
+
+  return (
+    <>
       {/* Stats */}
       <div className="grid-stats" style={{ marginBottom: 32 }}>
         {[
@@ -268,6 +309,6 @@ export default async function StaffDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }

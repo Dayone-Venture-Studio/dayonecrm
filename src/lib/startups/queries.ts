@@ -1,4 +1,5 @@
 import 'server-only'
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import type {
   Startup,
@@ -38,27 +39,26 @@ export interface ListOptions {
  * Single source of truth for "which startup does this user belong to as ROLE?".
  * Returns null when the user has no membership with that role.
  */
-export async function getMembershipForUser(
-  userId: string,
-  role: 'FOUNDER' | 'STAFF'
-): Promise<StartupMembership | null> {
-  const supabase = await createClient()
+export const getMembershipForUser = cache(
+  async (userId: string, role: 'FOUNDER' | 'STAFF'): Promise<StartupMembership | null> => {
+    const supabase = await createClient()
 
-  const { data } = await supabase
-    .from('startup_members')
-    .select('startup_id, startup:startups(name, logo_url)')
-    .eq('user_id', userId)
-    .eq('role', role)
-    .single()
+    const { data } = await supabase
+      .from('startup_members')
+      .select('startup_id, startup:startups(name, logo_url)')
+      .eq('user_id', userId)
+      .eq('role', role)
+      .single()
 
-  if (!data) return null
+    if (!data) return null
 
-  const startup = Array.isArray(data.startup)
-    ? (data.startup[0] as StartupSummary | undefined) ?? null
-    : (data.startup as StartupSummary | null) ?? null
+    const startup = Array.isArray(data.startup)
+      ? (data.startup[0] as StartupSummary | undefined) ?? null
+      : (data.startup as StartupSummary | null) ?? null
 
-  return { startup_id: data.startup_id, startup }
-}
+    return { startup_id: data.startup_id, startup }
+  }
+)
 
 // ─── Startup-scoped reads ───────────────────────────────────────────────────
 
