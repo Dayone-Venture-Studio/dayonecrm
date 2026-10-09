@@ -1,5 +1,7 @@
+import { Suspense } from 'react'
 import { getSession } from '@/lib/auth/getSession'
 import { getFounderDashboardData } from '@/lib/startups/founderQueries'
+import { DashboardSkeleton } from '@/components/layout/DashboardSkeleton'
 import { FounderHeader } from '@/components/founder/FounderHeader'
 import { FounderStatsRow } from '@/components/founder/FounderStatsRow'
 import { FounderHealthCard } from '@/components/founder/FounderHealthCard'
@@ -11,7 +13,15 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Founder Command Center — Day One' }
 
-export default async function FounderDashboard() {
+export default function FounderDashboard() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <FounderDashboardContent />
+    </Suspense>
+  )
+}
+
+async function FounderDashboardContent() {
   const session = await getSession()
   const {
     startupId,

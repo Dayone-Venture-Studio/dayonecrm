@@ -171,6 +171,7 @@ export function Sidebar({
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 className={`nav-link ${isActive ? 'active' : ''}`}
               >
                 <span className="nav-link-icon">{renderNavIcon(item.icon)}</span>

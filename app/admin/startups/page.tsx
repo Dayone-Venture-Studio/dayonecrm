@@ -1,3 +1,4 @@
+import { Suspense, cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Metadata } from 'next'
@@ -5,10 +6,11 @@ import type { WeeklyPerformance } from '@/types'
 import { calculatePerformanceStatus } from '@/lib/performance/calculatePerformanceStatus'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { TableSkeleton, TextSkeleton } from '@/components/layout/LoadingStates'
 
 export const metadata: Metadata = { title: 'Startups' }
 
-export default async function StartupsPage() {
+const getStartupsData = cache(async () => {
   const supabase = await createClient()
 
   const { data: startups } = await supabase
@@ -30,18 +32,26 @@ export default async function StartupsPage() {
     {}
   )
 
-  const statusColors: Record<string, string> = {
-    ACTIVE: 'badge-success',
-    PENDING: 'badge-warning',
-    REJECTED: 'badge-danger',
-    INACTIVE: 'badge-neutral',
-  }
+  return { startups: startups || [], perfByStartup }
+})
 
+const statusColors: Record<string, string> = {
+  ACTIVE: 'badge-success',
+  PENDING: 'badge-warning',
+  REJECTED: 'badge-danger',
+  INACTIVE: 'badge-neutral',
+}
+
+export default function StartupsPage() {
   return (
     <div>
       <PageHeader
         title="All Startups"
-        subtitle={`Portfolio overview — ${startups?.length || 0} startups`}
+        subtitle={
+          <Suspense fallback={<TextSkeleton width={180} />}>
+            <StartupsSubtitle />
+          </Suspense>
+        }
         actions={
           <Link href="/tv" target="_blank" className="btn btn-secondary btn-sm">
             📺 Multi-TV Studio Hub
@@ -49,135 +59,152 @@ export default async function StartupsPage() {
         }
       />
 
-      {startups?.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">🚀</div>
-          <h3>No startups yet</h3>
-          <p>Approved registrations will appear here</p>
-        </div>
-      ) : (
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Startup</th>
-                <th>Status</th>
-                <th>Completion</th>
-                <th>Early %</th>
-                <th>On-Time %</th>
-                <th>Late %</th>
-                <th>Performance</th>
-                <th>Actions</th>
+      <Suspense fallback={<TableSkeleton rows={8} />}>
+        <StartupsContent />
+      </Suspense>
+    </div>
+  )
+}
+
+async function StartupsSubtitle() {
+  const { startups } = await getStartupsData()
+  return <>Portfolio overview — {startups.length} startups</>
+}
+
+async function StartupsContent() {
+  const { startups, perfByStartup } = await getStartupsData()
+
+  if (startups.length === 0) {
+    return (
+      <div className="empty-state">
+        <div className="empty-state-icon">🚀</div>
+        <h3>No startups yet</h3>
+        <p>Approved registrations will appear here</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Startup</th>
+            <th>Status</th>
+            <th>Completion</th>
+            <th>Early %</th>
+            <th>On-Time %</th>
+            <th>Late %</th>
+            <th>Performance</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {startups.map((startup) => {
+            const perf = perfByStartup[startup.id]
+            const perfStatus = perf
+              ? calculatePerformanceStatus({
+                  completionRate: perf.completion_rate,
+                  earlyRate: perf.early_rate,
+                  overdueCount: perf.overdue_tasks,
+                  totalTasks: perf.total_tasks,
+                })
+              : null
+
+            const perfStatusClass = perfStatus
+              ? {
+                  AHEAD: 'status-ahead',
+                  ON_TRACK: 'status-on-track',
+                  BEHIND: 'status-behind',
+                  AT_RISK: 'status-at-risk',
+                }[perfStatus]
+              : null
+
+            return (
+              <tr key={startup.id}>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <CompanyLogo logoUrl={startup.logo_url} name={startup.name} size={32} />
+                    <div>
+                      <div
+                        style={{ fontWeight: 600, fontSize: 14, color: 'var(--color-text-primary)' }}
+                      >
+                        {startup.name}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
+                        {startup.email}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span className={`badge ${statusColors[startup.status] || 'badge-neutral'}`}>
+                    {startup.status}
+                  </span>
+                </td>
+                <td>
+                  {perf ? (
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 700,
+                          color: 'var(--color-text-primary)',
+                        }}
+                      >
+                        {Math.round(perf.completion_rate)}%
+                      </div>
+                      <div className="progress-bar" style={{ marginTop: 4, width: 80 }}>
+                        <div
+                          className="progress-fill progress-fill-brand"
+                          style={{ width: `${perf.completion_rate}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>—</span>
+                  )}
+                </td>
+                <td style={{ color: 'var(--color-success)' }}>
+                  {perf ? `${Math.round(perf.early_rate)}%` : '—'}
+                </td>
+                <td style={{ color: 'var(--color-info)' }}>
+                  {perf ? `${Math.round(perf.on_time_rate)}%` : '—'}
+                </td>
+                <td style={{ color: 'var(--color-warning)' }}>
+                  {perf ? `${Math.round(perf.late_rate)}%` : '—'}
+                </td>
+                <td>
+                  {perfStatusClass ? (
+                    <span className={`badge ${perfStatusClass}`}>{perfStatus}</span>
+                  ) : (
+                    <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>No data</span>
+                  )}
+                </td>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Link
+                      href={`/tv/${startup.id}`}
+                      target="_blank"
+                      className="btn btn-secondary btn-sm"
+                      title="Open Live TV Display for this startup"
+                      style={{ padding: '4px 8px', fontSize: 12 }}
+                    >
+                      📺 TV
+                    </Link>
+                    <Link
+                      href={`/admin/startups/${startup.id}`}
+                      className="btn btn-ghost btn-sm"
+                    >
+                      View →
+                    </Link>
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {startups?.map((startup) => {
-                const perf = perfByStartup[startup.id]
-                const perfStatus = perf
-                  ? calculatePerformanceStatus({
-                      completionRate: perf.completion_rate,
-                      earlyRate: perf.early_rate,
-                      overdueCount: perf.overdue_tasks,
-                      totalTasks: perf.total_tasks,
-                    })
-                  : null
-
-                const perfStatusClass = perfStatus
-                  ? {
-                      AHEAD: 'status-ahead',
-                      ON_TRACK: 'status-on-track',
-                      BEHIND: 'status-behind',
-                      AT_RISK: 'status-at-risk',
-                    }[perfStatus]
-                  : null
-
-                return (
-                  <tr key={startup.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <CompanyLogo logoUrl={startup.logo_url} name={startup.name} size={32} />
-                        <div>
-                          <div
-                            style={{ fontWeight: 600, fontSize: 14, color: 'var(--color-text-primary)' }}
-                          >
-                            {startup.name}
-                          </div>
-                          <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                            {startup.email}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`badge ${statusColors[startup.status] || 'badge-neutral'}`}>
-                        {startup.status}
-                      </span>
-                    </td>
-                    <td>
-                      {perf ? (
-                        <div>
-                          <div
-                            style={{
-                              fontSize: 15,
-                              fontWeight: 700,
-                              color: 'var(--color-text-primary)',
-                            }}
-                          >
-                            {Math.round(perf.completion_rate)}%
-                          </div>
-                          <div className="progress-bar" style={{ marginTop: 4, width: 80 }}>
-                            <div
-                              className="progress-fill progress-fill-brand"
-                              style={{ width: `${perf.completion_rate}%` }}
-                            />
-                          </div>
-                        </div>
-                      ) : (
-                        <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ color: 'var(--color-success)' }}>
-                      {perf ? `${Math.round(perf.early_rate)}%` : '—'}
-                    </td>
-                    <td style={{ color: 'var(--color-info)' }}>
-                      {perf ? `${Math.round(perf.on_time_rate)}%` : '—'}
-                    </td>
-                    <td style={{ color: 'var(--color-warning)' }}>
-                      {perf ? `${Math.round(perf.late_rate)}%` : '—'}
-                    </td>
-                    <td>
-                      {perfStatusClass ? (
-                        <span className={`badge ${perfStatusClass}`}>{perfStatus}</span>
-                      ) : (
-                        <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>No data</span>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <Link
-                          href={`/tv/${startup.id}`}
-                          target="_blank"
-                          className="btn btn-secondary btn-sm"
-                          title="Open Live TV Display for this startup"
-                          style={{ padding: '4px 8px', fontSize: 12 }}
-                        >
-                          📺 TV
-                        </Link>
-                        <Link
-                          href={`/admin/startups/${startup.id}`}
-                          className="btn btn-ghost btn-sm"
-                        >
-                          View →
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }

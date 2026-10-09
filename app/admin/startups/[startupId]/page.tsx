@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import {
   getStartupById,
@@ -10,6 +11,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
+import { DetailSkeleton } from '@/components/layout/LoadingStates'
 
 export const metadata: Metadata = { title: 'Startup Detail' }
 
@@ -17,7 +19,26 @@ interface Props {
   params: Promise<{ startupId: string }>
 }
 
-export default async function StartupDetailPage({ params }: Props) {
+export default function StartupDetailPage({ params }: Props) {
+  return (
+    <div>
+      <div className="page-header">
+        <Link
+          href="/admin/startups"
+          style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: 13 }}
+        >
+          ← Startups
+        </Link>
+      </div>
+
+      <Suspense fallback={<DetailSkeleton />}>
+        <StartupDetailContent params={params} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function StartupDetailContent({ params }: Props) {
   const { startupId } = await params
   const supabase = await createClient()
 
@@ -63,13 +84,10 @@ export default async function StartupDetailPage({ params }: Props) {
   }
 
   return (
-    <div>
+    <>
       {/* Header */}
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Link href="/admin/startups" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: 13 }}>
-            ← Startups
-          </Link>
           <CompanyLogo logoUrl={startup.logo_url} name={startup.name} size={48} />
           <div>
             <h1 className="page-title">{startup.name}</h1>
@@ -191,6 +209,6 @@ export default async function StartupDetailPage({ params }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </>
   )
 }

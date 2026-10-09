@@ -1,5 +1,7 @@
+import { Suspense, cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { TableSkeleton, TextSkeleton } from '@/components/layout/LoadingStates'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Activity Log' }
@@ -34,7 +36,7 @@ const actionIcons: Record<string, string> = {
   ADDED_STAFF: '👥',
 }
 
-export default async function ActivityPage() {
+const getActivityData = cache(async () => {
   const supabase = await createClient()
 
   const { data: logs } = await supabase
@@ -49,86 +51,109 @@ export default async function ActivityPage() {
     return acc
   }, {})
 
+  return { logs: logs || [], startupMap }
+})
+
+export default function ActivityPage() {
   return (
     <div>
       <PageHeader
         title="Activity Log"
         subtitle="All actions across the portfolio"
-        actions={<span className="badge badge-neutral">{logs?.length || 0} entries</span>}
+        actions={
+          <Suspense fallback={<TextSkeleton width={72} />}>
+            <ActivityCount />
+          </Suspense>
+        }
       />
 
-      <div className="card">
-        {logs?.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">⚡</div>
-            <h3>No activity yet</h3>
-            <p>Actions across all startups will appear here</p>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {logs?.map((log, i) => (
+      <Suspense fallback={<TableSkeleton rows={8} />}>
+        <ActivityContent />
+      </Suspense>
+    </div>
+  )
+}
+
+async function ActivityCount() {
+  const { logs } = await getActivityData()
+  return <span className="badge badge-neutral">{logs.length} entries</span>
+}
+
+async function ActivityContent() {
+  const { logs, startupMap } = await getActivityData()
+
+  return (
+    <div className="card">
+      {logs.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state-icon">⚡</div>
+          <h3>No activity yet</h3>
+          <p>Actions across all startups will appear here</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {logs.map((log, i) => (
+            <div
+              key={log.id}
+              style={{
+                display: 'flex',
+                gap: 16,
+                alignItems: 'flex-start',
+                padding: '14px 0',
+                borderBottom:
+                  i < logs.length - 1
+                    ? '1px solid var(--color-border-subtle)'
+                    : 'none',
+              }}
+            >
               <div
-                key={log.id}
                 style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  background: 'var(--color-surface-3)',
                   display: 'flex',
-                  gap: 16,
-                  alignItems: 'flex-start',
-                  padding: '14px 0',
-                  borderBottom:
-                    i < (logs?.length || 0) - 1
-                      ? '1px solid var(--color-border-subtle)'
-                      : 'none',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 16,
+                  flexShrink: 0,
                 }}
               >
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 8,
-                    background: 'var(--color-surface-3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 16,
-                    flexShrink: 0,
-                  }}
-                >
-                  {actionIcons[log.action] || '⚡'}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 14, color: 'var(--color-text-primary)', fontWeight: 500 }}>
-                    {formatAction(log.action)}
-                  </div>
-                  {log.startup_id && (
-                    <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 2 }}>
-                      {startupMap[log.startup_id] || 'Unknown startup'}
-                    </div>
-                  )}
-                  {log.metadata && Object.keys(log.metadata).length > 0 && (
-                    <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>
-                      {Object.entries(log.metadata as Record<string, unknown>)
-                        .filter(([k]) => !['startup_id', 'user_id'].includes(k))
-                        .map(([k, v]) => `${k}: ${v}`)
-                        .slice(0, 2)
-                        .join(' · ')}
-                    </div>
-                  )}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--color-text-muted)',
-                    flexShrink: 0,
-                    marginTop: 2,
-                  }}
-                >
-                  {timeAgo(log.created_at)}
-                </div>
+                {actionIcons[log.action] || '⚡'}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, color: 'var(--color-text-primary)', fontWeight: 500 }}>
+                  {formatAction(log.action)}
+                </div>
+                {log.startup_id && (
+                  <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                    {startupMap[log.startup_id] || 'Unknown startup'}
+                  </div>
+                )}
+                {log.metadata && Object.keys(log.metadata).length > 0 && (
+                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                    {Object.entries(log.metadata as Record<string, unknown>)
+                      .filter(([k]) => !['startup_id', 'user_id'].includes(k))
+                      .map(([k, v]) => `${k}: ${v}`)
+                      .slice(0, 2)
+                      .join(' · ')}
+                  </div>
+                )}
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: 'var(--color-text-muted)',
+                  flexShrink: 0,
+                  marginTop: 2,
+                }}
+              >
+                {timeAgo(log.created_at)}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -1,8 +1,10 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { PerformanceCharts } from '@/components/charts/PerformanceCharts'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { calculateStartupHealth } from '@/lib/performance/calculateStartupHealth'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { TableSkeleton } from '@/components/layout/LoadingStates'
 import type { Metadata } from 'next'
 import type { WeeklyPerformance, Task, Domain } from '@/types'
 import Link from 'next/link'
@@ -10,7 +12,28 @@ import { MonitorPlay, AlertTriangle, CheckCircle } from 'lucide-react'
 
 export const metadata: Metadata = { title: 'Performance Analytics' }
 
-export default async function PerformancePage() {
+export default function PerformancePage() {
+  return (
+    <div>
+      <PageHeader
+        title="Performance Analytics"
+        subtitle="Portfolio-wide performance metrics, health scores, and trends"
+        actions={
+          <Link href="/tv" target="_blank" className="btn btn-secondary">
+            <MonitorPlay className="w-4 h-4 text-purple-600" />
+            <span>Launch TV Wall View</span>
+          </Link>
+        }
+      />
+
+      <Suspense fallback={<TableSkeleton rows={6} />}>
+        <PerformanceContent />
+      </Suspense>
+    </div>
+  )
+}
+
+async function PerformanceContent() {
   const supabase = await createClient()
 
   // Get all active startups, latest performance, raw tasks, and domains
@@ -109,26 +132,8 @@ export default async function PerformancePage() {
     { name: 'Overdue', value: statusCounts.Overdue, color: '#e11d48' },
   ]
 
-  const perfStatusClass: Record<string, string> = {
-    AHEAD: 'status-ahead',
-    ON_TRACK: 'status-on-track',
-    BEHIND: 'status-behind',
-    AT_RISK: 'status-at-risk',
-  }
-
   return (
-    <div>
-      <PageHeader
-        title="Performance Analytics"
-        subtitle="Portfolio-wide performance metrics, health scores, and trends"
-        actions={
-          <Link href="/tv" target="_blank" className="btn btn-secondary">
-            <MonitorPlay className="w-4 h-4 text-purple-600" />
-            <span>Launch TV Wall View</span>
-          </Link>
-        }
-      />
-
+    <>
       {/* Charts */}
       <PerformanceCharts barData={barData} trendData={trendData} statusData={statusData} />
 
@@ -284,6 +289,6 @@ export default async function PerformancePage() {
           </table>
         </div>
       </div>
-    </div>
+    </>
   )
 }

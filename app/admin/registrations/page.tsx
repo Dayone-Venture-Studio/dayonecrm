@@ -1,11 +1,13 @@
+import { Suspense, cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { RegistrationActions } from '@/components/registrations/RegistrationActions'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { TableSkeleton, TextSkeleton } from '@/components/layout/LoadingStates'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Registrations' }
 
-export default async function RegistrationsPage() {
+const getRegistrationData = cache(async () => {
   const supabase = await createClient()
 
   const { data: requests } = await supabase
@@ -19,18 +21,43 @@ export default async function RegistrationsPage() {
   const pending = (requests || []).filter((r) => r.status === 'PENDING')
   const reviewed = (requests || []).filter((r) => r.status !== 'PENDING')
 
+  return { requests: requests || [], pending, reviewed }
+})
+
+export default function RegistrationsPage() {
   return (
     <div>
       <PageHeader
         title="Registration Requests"
         subtitle="Review and approve startup applications"
         actions={
-          <div className="badge badge-warning" style={{ display: 'inline-flex' }}>
-            {pending.length} Pending
-          </div>
+          <Suspense fallback={<TextSkeleton width={90} />}>
+            <PendingBadge />
+          </Suspense>
         }
       />
 
+      <Suspense fallback={<TableSkeleton rows={6} />}>
+        <RegistrationsContent />
+      </Suspense>
+    </div>
+  )
+}
+
+async function PendingBadge() {
+  const { pending } = await getRegistrationData()
+  return (
+    <div className="badge badge-warning" style={{ display: 'inline-flex' }}>
+      {pending.length} Pending
+    </div>
+  )
+}
+
+async function RegistrationsContent() {
+  const { requests, pending, reviewed } = await getRegistrationData()
+
+  return (
+    <>
       {/* Pending */}
       {pending.length > 0 && (
         <div style={{ marginBottom: 40 }}>
@@ -117,13 +144,13 @@ export default async function RegistrationsPage() {
         </div>
       )}
 
-      {requests?.length === 0 && (
+      {requests.length === 0 && (
         <div className="empty-state">
           <div className="empty-state-icon">📋</div>
           <h3>No registration requests</h3>
           <p>New startup applications will appear here</p>
         </div>
       )}
-    </div>
+    </>
   )
 }

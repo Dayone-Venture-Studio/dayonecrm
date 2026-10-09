@@ -1,20 +1,15 @@
+import { Suspense } from 'react'
 import { requireVentureManager } from '@/lib/auth/requireRole'
 import { getAllNotes } from '@/lib/venture-manager/queries'
 import { NotesList } from '@/components/venture-manager/NotesList'
+import { TableSkeleton } from '@/components/layout/LoadingStates'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { 
   title: 'Venture Manager Notes',
 }
 
-export default async function VentureManagerNotesPage() {
-  await requireVentureManager()
-  
-  const allNotes = await getAllNotes()
-  const activeNotes = allNotes.filter(n => !n.resolved)
-  const resolvedNotes = allNotes.filter(n => n.resolved)
-  const criticalNotes = activeNotes.filter(n => n.urgency === 'CRITICAL')
-
+export default function VentureManagerNotesPage() {
   return (
     <div className="p-8 space-y-6">
       <div>
@@ -22,6 +17,23 @@ export default async function VentureManagerNotesPage() {
         <p className="text-gray-600 mt-2">Review all notes and flags from venture managers</p>
       </div>
 
+      <Suspense fallback={<TableSkeleton rows={6} />}>
+        <NotesContent />
+      </Suspense>
+    </div>
+  )
+}
+
+async function NotesContent() {
+  await requireVentureManager()
+
+  const allNotes = await getAllNotes()
+  const activeNotes = allNotes.filter(n => !n.resolved)
+  const resolvedNotes = allNotes.filter(n => n.resolved)
+  const criticalNotes = activeNotes.filter(n => n.urgency === 'CRITICAL')
+
+  return (
+    <>
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
@@ -49,6 +61,6 @@ export default async function VentureManagerNotesPage() {
         <h2 className="text-xl font-bold mb-4">Resolved Notes ({resolvedNotes.length})</h2>
         <NotesList notes={resolvedNotes} showEntityInfo />
       </div>
-    </div>
+    </>
   )
 }

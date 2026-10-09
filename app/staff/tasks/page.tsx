@@ -1,19 +1,21 @@
+import { Suspense, cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/getSession'
 import { getMembershipForUser } from '@/lib/startups/queries'
 import { TasksClient } from '@/components/tasks/TasksClient'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { TableSkeleton, TextSkeleton } from '@/components/layout/LoadingStates'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'My Tasks' }
 
-export default async function StaffTasksPage() {
+const getStaffTasksData = cache(async () => {
   const session = await getSession()
   const supabase = await createClient()
 
   const membership = await getMembershipForUser(session!.id, 'STAFF')
   const startupId = membership?.startup_id
-  if (!startupId) return <div>Startup not found</div>
+  if (!startupId) return null
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -38,20 +40,57 @@ export default async function StaffTasksPage() {
 
   const currentPlan = weeklyPlans?.find((p) => p.week_start <= today && p.week_end >= today) || weeklyPlans?.[0]
 
+  return {
+    startupId,
+    currentUserId: session!.id,
+    tasks: tasks || [],
+    domains: domains || [],
+    weeklyPlans: weeklyPlans || [],
+    staffMembers: (staffMembers as any) || [],
+    currentPlanId: currentPlan?.id,
+  }
+})
+
+export default function StaffTasksPage() {
   return (
     <div>
-      <PageHeader title="My Tasks" subtitle={`${tasks?.length || 0} tasks assigned to you`} />
-      <TasksClient
-        startupId={startupId}
-        tasks={tasks || []}
-        domains={domains || []}
-        weeklyPlans={weeklyPlans || []}
-        staffMembers={(staffMembers as any) || []}
-        isFounder={false}
-        isStaff={true}
-        currentUserId={session!.id}
-        currentPlanId={currentPlan?.id}
+      <PageHeader
+        title="My Tasks"
+        subtitle={
+          <Suspense fallback={<TextSkeleton width={150} />}>
+            <StaffTasksSubtitle />
+          </Suspense>
+        }
       />
+
+      <Suspense fallback={<TableSkeleton rows={8} />}>
+        <StaffTasksContent />
+      </Suspense>
     </div>
+  )
+}
+
+async function StaffTasksSubtitle() {
+  const data = await getStaffTasksData()
+  if (!data) return null
+  return <>{data.tasks.length} tasks assigned to you</>
+}
+
+async function StaffTasksContent() {
+  const data = await getStaffTasksData()
+  if (!data) return <div>Startup not found</div>
+
+  return (
+    <TasksClient
+      startupId={data.startupId}
+      tasks={data.tasks}
+      domains={data.domains}
+      weeklyPlans={data.weeklyPlans}
+      staffMembers={data.staffMembers}
+      isFounder={false}
+      isStaff={true}
+      currentUserId={data.currentUserId}
+      currentPlanId={data.currentPlanId}
+    />
   )
 }

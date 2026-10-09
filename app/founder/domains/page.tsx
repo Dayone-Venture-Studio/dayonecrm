@@ -1,13 +1,27 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/getSession'
 import { getMembershipForUser } from '@/lib/startups/queries'
 import { DomainsClient } from '@/components/domains/DomainsClient'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { CardsSkeleton } from '@/components/layout/LoadingStates'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Domains' }
 
-export default async function DomainsPage() {
+export default function DomainsPage() {
+  return (
+    <div>
+      <PageHeader title="Domains" subtitle="Organize your team by functional area" />
+
+      <Suspense fallback={<CardsSkeleton count={6} />}>
+        <DomainsContent />
+      </Suspense>
+    </div>
+  )
+}
+
+async function DomainsContent() {
   const session = await getSession()
   const supabase = await createClient()
 
@@ -21,10 +35,5 @@ export default async function DomainsPage() {
     .eq('startup_id', startupId)
     .order('created_at', { ascending: true })
 
-  return (
-    <div>
-      <PageHeader title="Domains" subtitle="Organize your team by functional area" />
-      <DomainsClient startupId={startupId} domains={domains || []} />
-    </div>
-  )
+  return <DomainsClient startupId={startupId} domains={domains || []} />
 }

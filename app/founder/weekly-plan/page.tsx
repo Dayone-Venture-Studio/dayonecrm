@@ -1,8 +1,10 @@
+import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/getSession'
 import { getMembershipForUser } from '@/lib/startups/queries'
 import { WeeklyPlanClient } from '@/components/weekly-plan/WeeklyPlanClient'
 import { PageHeader } from '@/components/layout/PageHeader'
+import { DashboardSkeleton } from '@/components/layout/DashboardSkeleton'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Weekly Plan' }
@@ -11,10 +13,25 @@ interface Props {
   searchParams?: Promise<{ plan?: string }>
 }
 
-export default async function WeeklyPlanPage(props: Props) {
+export default function WeeklyPlanPage(props: Props) {
+  return (
+    <div>
+      <PageHeader
+        title="Weekly Plans & Sprints"
+        subtitle={"Organize and track your startup's sprint execution"}
+      />
+
+      <Suspense fallback={<DashboardSkeleton />}>
+        <WeeklyPlanContent searchParams={props.searchParams} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function WeeklyPlanContent({ searchParams: searchParamsPromise }: Props) {
   const session = await getSession()
   const supabase = await createClient()
-  const searchParams = props.searchParams ? await props.searchParams : {}
+  const searchParams = searchParamsPromise ? await searchParamsPromise : {}
 
   const membership = await getMembershipForUser(session!.id, 'FOUNDER')
   const startupId = membership?.startup_id
@@ -22,7 +39,7 @@ export default async function WeeklyPlanPage(props: Props) {
 
   const today = new Date().toISOString().split('T')[0]
 
-  const [{ data: allPlans }, { data: domains }, { data: staff }] = await Promise.all([
+  const [{ data: allPlans }, { data: domains }, { data: staff }, { data: allTasks }] = await Promise.all([
     supabase
       .from('weekly_plans')
       .select('*')
@@ -32,6 +49,11 @@ export default async function WeeklyPlanPage(props: Props) {
     supabase
       .from('startup_members')
       .select('user_id, role, profile:profiles(id, full_name, email)')
+      .eq('startup_id', startupId)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('tasks')
+      .select('*')
       .eq('startup_id', startupId)
       .order('created_at', { ascending: true }),
   ])
@@ -50,28 +72,18 @@ export default async function WeeklyPlanPage(props: Props) {
     }
   }
 
-  const { data: tasks } = activePlan
-    ? await supabase
-        .from('tasks')
-        .select('*')
-        .eq('weekly_plan_id', activePlan.id)
-        .order('created_at', { ascending: true })
-    : { data: [] }
+  const tasks = activePlan
+    ? (allTasks ?? []).filter((t) => t.weekly_plan_id === activePlan!.id)
+    : []
 
   return (
-    <div>
-      <PageHeader
-        title="Weekly Plans & Sprints"
-        subtitle={"Organize and track your startup's sprint execution"}
-      />
-      <WeeklyPlanClient
-        startupId={startupId}
-        allPlans={allPlans || []}
-        activePlan={activePlan}
-        domains={domains || []}
-        tasks={tasks || []}
-        staffMembers={(staff as any) || []}
-      />
-    </div>
+    <WeeklyPlanClient
+      startupId={startupId}
+      allPlans={allPlans || []}
+      activePlan={activePlan}
+      domains={domains || []}
+      tasks={tasks || []}
+      staffMembers={(staff as any) || []}
+    />
   )
 }

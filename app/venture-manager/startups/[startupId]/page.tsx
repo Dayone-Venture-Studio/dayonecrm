@@ -16,6 +16,7 @@ import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { StartupDetailClient } from '@/components/venture-manager/StartupDetailClient'
 import { NotesTab } from '@/components/venture-manager/NotesTab'
 import { TrendCharts } from '@/components/venture-manager/TrendCharts'
+import { DetailSkeleton } from '@/components/layout/LoadingStates'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { notFound } from 'next/navigation'
@@ -70,7 +71,26 @@ async function TabSection({ tab, startupId, startupName }: TabSectionProps) {
   return null
 }
 
-export default async function StartupDetailPage({ params, searchParams }: Props) {
+export default function StartupDetailPage({ params, searchParams }: Props) {
+  return (
+    <div className="flex flex-col gap-6 mx-auto w-full max-w-[1200px] px-8 py-6">
+      {/* Back Navigation */}
+      <Link
+        href="/venture-manager"
+        className="inline-flex items-center gap-1.5 text-brand text-sm font-semibold no-underline -mb-2"
+      >
+        <ArrowLeft size={16} />
+        Back to Portfolio
+      </Link>
+
+      <Suspense fallback={<DetailSkeleton />}>
+        <StartupDetailContent params={params} searchParams={searchParams} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function StartupDetailContent({ params, searchParams }: Props) {
   await requireVentureManager()
   const { startupId } = await params
   const { tab: rawTab } = await searchParams
@@ -100,16 +120,7 @@ export default async function StartupDetailPage({ params, searchParams }: Props)
   const staff = teamMembers.filter((m) => m.role === 'STAFF')
 
   return (
-    <div className="flex flex-col gap-6 mx-auto w-full max-w-[1200px] px-8 py-6">
-      {/* Back Navigation */}
-      <Link
-        href="/venture-manager"
-        className="inline-flex items-center gap-1.5 text-brand text-sm font-semibold no-underline -mb-2"
-      >
-        <ArrowLeft size={16} />
-        Back to Portfolio
-      </Link>
-
+    <>
       {/* Startup Header */}
       <div className="card flex items-center gap-5">
         <CompanyLogo logoUrl={startup.logo_url} name={startup.name} size="lg" />
@@ -158,7 +169,7 @@ export default async function StartupDetailPage({ params, searchParams }: Props)
           <TabSection tab={activeTab} startupId={startupId} startupName={startup.name} />
         </Suspense>
       </StartupDetailClient>
-    </div>
+    </>
   )
 }
 
