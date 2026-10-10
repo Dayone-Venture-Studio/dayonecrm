@@ -538,6 +538,12 @@ tr:hover td { background: #faf8eb; color: var(--color-text-primary); }
 }
 .animate-fade-in { animation: fadeIn 0.25s ease forwards; }
 
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.animate-slide-in-left { animation: slideInLeft 0.35s ease forwards; }
+
 /* ── Avatar ── */
 .avatar {
   width: 36px;
