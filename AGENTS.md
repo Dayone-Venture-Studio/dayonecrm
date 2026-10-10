@@ -44,16 +44,18 @@ env file and is never loaded — `.env` is the live one.
 - Actual route protection = `requireRole()` helpers in `src/lib/auth/requireRole.ts`, called at the
   top of each role `app/*/layout.tsx` (e.g. `app/admin/layout.tsx` -> `requireAdmin()`). New role
   surface must be gated there; a page without a guarded layout is publicly reachable.
-- `/tv`, `/tv/*` and `/api/*` are intentionally unauthenticated (see below).
+- `/tv`, `/tv/*`, `/performance`, `/performance/*` and `/api/*` are intentionally unauthenticated (see below).
 
 ## Supabase clients
 
 - `src/lib/supabase/server.ts` — RSC + server actions. RLS applies. Cookie writes are wrapped in
   try/catch because Server Components cannot set cookies.
 - `src/lib/supabase/client.ts` — `'use client'` browser client.
-- `src/lib/supabase/admin.ts` — **service role, bypasses RLS.** Only for TV telemetry
-  (`src/lib/tv/telemetry.ts`), which serves public `/tv` screens. Never import it from anything
-  user-authenticated; there is no RLS backstop there.
+- `src/lib/supabase/admin.ts` — **service role, bypasses RLS.** Only for public
+  presentation walls: TV telemetry (`src/lib/tv/telemetry.ts`) serving `/tv`, and the performance
+  wall data layer (`src/lib/performance/getPerformanceDisplayData.ts`) serving `/performance`.
+  Never import it from anything user-authenticated; there is no RLS backstop there. A path that
+  uses it must only `SELECT` presentation columns it needs, never admin-only fields, and never write.
 
 ## Server actions
 
