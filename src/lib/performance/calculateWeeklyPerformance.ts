@@ -12,7 +12,7 @@ import { calculatePerformanceStatus } from './calculatePerformanceStatus'
  * This is the single source of truth for performance aggregation.
  */
 export function calculateWeeklyPerformance(
-  tasks: Task[],
+  tasks: Pick<Task, 'status' | 'due_date' | 'completed_at'>[],
   startupId: string,
   weeklyPlanId: string,
   plannedEndDate: string

@@ -40,6 +40,7 @@ export const staffNav: NavItem[] = [
 
 export const ventureManagerNav: NavItem[] = [
   { href: '/venture-manager', label: 'Portfolio Overview', icon: '📊', match: 'exact' },
+  { href: '/venture-manager/reports', label: 'Reports', icon: '📈' },
   { href: '/venture-manager/my-notes', label: 'My Notes', icon: '📝' },
 ]
 
