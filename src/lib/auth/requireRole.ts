@@ -55,3 +55,24 @@ export async function requireVentureManager(): Promise<SessionUser> {
 export async function requireStartupMember(): Promise<SessionUser> {
   return requireRole(['FOUNDER', 'STAFF'])
 }
+
+/**
+ * Convenience: require EMPLOYEE role (internal team member)
+ */
+export async function requireEmployee(): Promise<SessionUser> {
+  return requireRole(['EMPLOYEE'])
+}
+
+/**
+ * Convenience: require PROJECT_MANAGER role (internal team lead)
+ */
+export async function requireProjectManager(): Promise<SessionUser> {
+  return requireRole(['PROJECT_MANAGER'])
+}
+
+/**
+ * Convenience: require EMPLOYEE or PROJECT_MANAGER (internal team portal)
+ */
+export async function requireTeamMember(): Promise<SessionUser> {
+  return requireRole(['EMPLOYEE', 'PROJECT_MANAGER'])
+}
