@@ -5,6 +5,7 @@ import { getMembershipForUser } from '@/lib/startups/queries'
 import { TasksClient } from '@/components/tasks/TasksClient'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { TableSkeleton, TextSkeleton } from '@/components/layout/LoadingStates'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Tasks' }
@@ -73,16 +74,25 @@ async function TasksSubtitle() {
 
 async function FounderTasksContent() {
   const data = await getFounderTasksData()
-  if (!data) return <div>Startup not found</div>
+  if (!data)
+    return (
+      <>
+        <DataLoadedSignal />
+        <div>Startup not found</div>
+      </>
+    )
 
   return (
-    <TasksClient
-      startupId={data.startupId}
-      tasks={data.tasks}
-      domains={data.domains}
-      weeklyPlans={data.weeklyPlans}
-      staffMembers={data.staffMembers}
-      isFounder={true}
-    />
+    <>
+      <DataLoadedSignal />
+      <TasksClient
+        startupId={data.startupId}
+        tasks={data.tasks}
+        domains={data.domains}
+        weeklyPlans={data.weeklyPlans}
+        staffMembers={data.staffMembers}
+        isFounder={true}
+      />
+    </>
   )
 }

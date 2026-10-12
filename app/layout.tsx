@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { Inter, Newsreader } from 'next/font/google'
+import { LoadingProvider } from '@/lib/providers/LoadingContext'
+import { TopLoaderProvider } from '@/lib/providers/TopLoaderProvider'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
@@ -26,7 +29,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${newsreader.variable}`}>
-      <body>{children}</body>
+      <body>
+        <LoadingProvider>
+          <Suspense fallback={null}>
+            <TopLoaderProvider />
+          </Suspense>
+          {children}
+        </LoadingProvider>
+      </body>
     </html>
   )
 }

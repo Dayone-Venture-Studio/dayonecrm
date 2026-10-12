@@ -5,6 +5,7 @@ import { getMembershipForUser } from '@/lib/startups/queries'
 import { StaffClient } from '@/components/staff/StaffClient'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { TableSkeleton, TextSkeleton } from '@/components/layout/LoadingStates'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Staff Management' }
@@ -54,7 +55,18 @@ async function StaffSubtitle() {
 
 async function StaffContent() {
   const data = await getStaffData()
-  if (!data) return <div>Startup not found</div>
+  if (!data)
+    return (
+      <>
+        <DataLoadedSignal />
+        <div>Startup not found</div>
+      </>
+    )
 
-  return <StaffClient startupId={data.startupId} staff={data.staff} />
+  return (
+    <>
+      <DataLoadedSignal />
+      <StaffClient startupId={data.startupId} staff={data.staff} />
+    </>
+  )
 }

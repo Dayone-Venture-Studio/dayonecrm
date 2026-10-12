@@ -12,6 +12,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { DetailSkeleton } from '@/components/layout/LoadingStates'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 
 export const metadata: Metadata = { title: 'Startup Detail' }
 
@@ -85,6 +86,7 @@ async function StartupDetailContent({ params }: Props) {
 
   return (
     <>
+      <DataLoadedSignal />
       {/* Header */}
       <div className="page-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
