@@ -45,46 +45,32 @@ export function TaskCreateModal({
 
   return (
     <ModalOverlay isOpen={true} onClose={onClose}>
-      <div
-        className="card"
-        style={{
-          width: '100%',
-          maxWidth: 580,
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          background: 'var(--color-surface)',
-          borderRadius: 12,
-          border: '1px solid var(--color-border)',
-          boxShadow: 'var(--modal-shadow)',
-          padding: 24,
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
+      <div className="card w-[640px] max-w-[calc(100vw-48px)] max-h-[90vh] overflow-y-auto bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-[var(--modal-shadow)] p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="m-0 text-lg font-bold text-[var(--color-text-primary)]">
             Create New Task
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="btn btn-ghost btn-sm btn-icon"
-            style={{ fontSize: 18, lineHeight: 1 }}
+            className="btn btn-ghost btn-sm btn-icon text-lg leading-none"
           >
             ✕
           </button>
         </div>
 
         {createState?.error && (
-          <div className="alert alert-error" style={{ marginBottom: 16 }}>
+          <div className="alert alert-error mb-4">
             {createState.error}
           </div>
         )}
 
-        <form action={createAction} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form action={createAction} className="flex flex-col gap-4">
           <input type="hidden" name="startup_id" value={startupId} />
           {!isFounder && currentPlanId && <input type="hidden" name="weekly_plan_id" value={currentPlanId} />}
           {isStaff && currentUserId && <input type="hidden" name="self_assign" value="true" />}
 
-          <div className="form-group">
+          <div className="form-group mb-4">
             <label className="label">Task Title *</label>
             <input
               name="title"
@@ -94,7 +80,17 @@ export function TaskCreateModal({
             />
           </div>
 
-          <div className="grid-2">
+          <div className="form-group mb-4">
+            <label className="label">Description</label>
+            <textarea
+              name="description"
+              className="input"
+              rows={3}
+              placeholder="Task details, acceptance criteria, or links…"
+            />
+          </div>
+
+          <div className="grid-2 mb-4">
             <DomainSelectWithQuickAdd
               startupId={startupId}
               initialDomains={domains}
@@ -134,14 +130,14 @@ export function TaskCreateModal({
                 </select>
               </div>
             )}
-            <div className="form-group">
+            <div className="form-group mb-4">
               <label className="label">Due Date</label>
               <input name="due_date" type="date" className="input" />
             </div>
           </div>
 
           {isFounder && (
-            <div className="form-group">
+            <div className="form-group mb-4">
               <label className="label">Assign To</label>
               <select name="assigned_to" className="input">
                 <option value="">Unassigned</option>
@@ -157,24 +153,14 @@ export function TaskCreateModal({
                 })}
               </select>
               {staffMembers.length === 0 && (
-                <span style={{ fontSize: 11.5, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>
+                <span className="block mt-1 text-[11.5px] text-[var(--color-text-muted)]">
                   No staff members added yet. You can assign tasks after adding staff in the Staff page.
                 </span>
               )}
             </div>
           )}
 
-          <div className="form-group">
-            <label className="label">Description</label>
-            <textarea
-              name="description"
-              className="input"
-              rows={3}
-              placeholder="Task details, acceptance criteria, or links…"
-            />
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+          <div className="flex justify-end gap-2.5 mt-2">
             <button type="button" onClick={onClose} className="btn btn-secondary" disabled={createPending}>
               Cancel
             </button>

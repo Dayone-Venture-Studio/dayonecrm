@@ -7,6 +7,7 @@ import { calculatePerformanceStatus } from '@/lib/performance/calculatePerforman
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { TableSkeleton, TextSkeleton } from '@/components/layout/LoadingStates'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 
 export const metadata: Metadata = { title: 'Startups' }
 
@@ -76,16 +77,21 @@ async function StartupsContent() {
 
   if (startups.length === 0) {
     return (
-      <div className="empty-state">
-        <div className="empty-state-icon">🚀</div>
-        <h3>No startups yet</h3>
-        <p>Approved registrations will appear here</p>
-      </div>
+      <>
+        <DataLoadedSignal />
+        <div className="empty-state">
+          <div className="empty-state-icon">🚀</div>
+          <h3>No startups yet</h3>
+          <p>Approved registrations will appear here</p>
+        </div>
+      </>
     )
   }
 
   return (
-    <div className="table-wrapper">
+    <>
+      <DataLoadedSignal />
+      <div className="table-wrapper">
       <table>
         <thead>
           <tr>
@@ -206,5 +212,6 @@ async function StartupsContent() {
         </tbody>
       </table>
     </div>
+    </>
   )
 }

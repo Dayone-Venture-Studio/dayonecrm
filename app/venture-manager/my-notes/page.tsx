@@ -3,6 +3,7 @@ import { requireVentureManager } from '@/lib/auth/requireRole'
 import { getAllNotes } from '@/lib/venture-manager/queries'
 import { NotesList } from '@/components/venture-manager/NotesList'
 import { TableSkeleton } from '@/components/layout/LoadingStates'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { 
@@ -34,6 +35,7 @@ async function NotesContent() {
 
   return (
     <>
+      <DataLoadedSignal />
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">

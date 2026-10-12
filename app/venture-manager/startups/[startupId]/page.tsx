@@ -17,6 +17,7 @@ import { StartupDetailClient } from '@/components/venture-manager/StartupDetailC
 import { NotesTab } from '@/components/venture-manager/NotesTab'
 import { TrendCharts } from '@/components/venture-manager/TrendCharts'
 import { DetailSkeleton } from '@/components/layout/LoadingStates'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { notFound } from 'next/navigation'
@@ -121,6 +122,7 @@ async function StartupDetailContent({ params, searchParams }: Props) {
 
   return (
     <>
+      <DataLoadedSignal />
       {/* Startup Header */}
       <div className="card flex items-center gap-5">
         <CompanyLogo logoUrl={startup.logo_url} name={startup.name} size="lg" />

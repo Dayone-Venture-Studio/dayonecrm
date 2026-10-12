@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { RegistrationActions } from '@/components/registrations/RegistrationActions'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { TableSkeleton, TextSkeleton } from '@/components/layout/LoadingStates'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Registrations' }
@@ -58,6 +59,7 @@ async function RegistrationsContent() {
 
   return (
     <>
+      <DataLoadedSignal />
       {/* Pending */}
       {pending.length > 0 && (
         <div style={{ marginBottom: 40 }}>

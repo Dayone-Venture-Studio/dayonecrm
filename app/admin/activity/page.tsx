@@ -2,6 +2,7 @@ import { Suspense, cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { TableSkeleton, TextSkeleton } from '@/components/layout/LoadingStates'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Activity Log' }
@@ -83,7 +84,9 @@ async function ActivityContent() {
   const { logs, startupMap } = await getActivityData()
 
   return (
-    <div className="card">
+    <>
+      <DataLoadedSignal />
+      <div className="card">
       {logs.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">⚡</div>
@@ -155,5 +158,6 @@ async function ActivityContent() {
         </div>
       )}
     </div>
+    </>
   )
 }

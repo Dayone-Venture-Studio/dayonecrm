@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useDataLoaded } from '@/lib/providers/LoadingContext'
 import { StartupHealthCard } from './StartupHealthCard'
 import { NeedsAttentionSection } from './NeedsAttentionSection'
 import { TrendCharts } from './TrendCharts'
@@ -37,6 +38,9 @@ export function VentureManagerDashboardClient({
   trendData,
   activeNotes,
 }: Props) {
+  // Signal that data is loaded and ready to display
+  useDataLoaded()
+
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<HealthStatusFilter>('ALL')
   const [sortBy, setSortBy] = useState<SortOption>('health')

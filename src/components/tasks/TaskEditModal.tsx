@@ -45,41 +45,27 @@ export function TaskEditModal({
 
   return (
     <ModalOverlay isOpen={!!task} onClose={onClose}>
-      <div
-        className="card"
-        style={{
-          width: '100%',
-          maxWidth: 580,
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          background: 'var(--color-surface)',
-          borderRadius: 12,
-          border: '1px solid var(--color-border)',
-          boxShadow: 'var(--modal-shadow)',
-          padding: 24,
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--color-text-primary)' }}>
+      <div className="card w-[640px] max-w-[calc(100vw-48px)] max-h-[90vh] overflow-y-auto bg-[var(--color-surface)] rounded-xl border border-[var(--color-border)] shadow-[var(--modal-shadow)] p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="m-0 text-lg font-bold text-[var(--color-text-primary)]">
             Edit Task
           </h2>
           <button
             type="button"
             onClick={onClose}
-            className="btn btn-ghost btn-sm btn-icon"
-            style={{ fontSize: 18, lineHeight: 1 }}
+            className="btn btn-ghost btn-sm btn-icon text-lg leading-none"
           >
             ✕
           </button>
         </div>
 
         {state?.error && (
-          <div className="alert alert-error" style={{ marginBottom: 16 }}>
+          <div className="alert alert-error mb-4">
             {state.error}
           </div>
         )}
 
-        <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form action={formAction} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={task.id} />
 
           <div className="form-group">
@@ -111,11 +97,25 @@ export function TaskEditModal({
 
           <div className="grid-2">
             <div className="form-group">
-              <label className="label">Status</label>
-              <select name="status" defaultValue={task.status} className="input">
-                <option value="TODO">Todo</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="DONE">Done</option>
+              <label className="label">Weekly Plan</label>
+              <select name="weekly_plan_id" defaultValue={task.weekly_plan_id || ''} className="input">
+                <option value="">No Plan</option>
+                {weeklyPlans.map((p) => {
+                  const startStr = new Date(p.week_start + 'T00:00:00').toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                  const endStr = new Date(p.week_end + 'T00:00:00').toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                  })
+                  const label = p.title || p.goal || 'Weekly Sprint'
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {label} ({startStr} → {endStr})
+                    </option>
+                  )
+                })}
               </select>
             </div>
             <div className="form-group">
@@ -146,27 +146,12 @@ export function TaskEditModal({
                 })}
               </select>
             </div>
-
             <div className="form-group">
-              <label className="label">Weekly Plan</label>
-              <select name="weekly_plan_id" defaultValue={task.weekly_plan_id || ''} className="input">
-                <option value="">No Plan</option>
-                {weeklyPlans.map((p) => {
-                  const startStr = new Date(p.week_start + 'T00:00:00').toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  })
-                  const endStr = new Date(p.week_end + 'T00:00:00').toLocaleDateString('en-US', {
-                    month: 'short',
-                    day: 'numeric',
-                  })
-                  const label = p.title || p.goal || 'Weekly Sprint'
-                  return (
-                    <option key={p.id} value={p.id}>
-                      {label} ({startStr} → {endStr})
-                    </option>
-                  )
-                })}
+              <label className="label">Status</label>
+              <select name="status" defaultValue={task.status} className="input">
+                <option value="TODO">Todo</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="DONE">Done</option>
               </select>
             </div>
           </div>
@@ -182,7 +167,7 @@ export function TaskEditModal({
             />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+          <div className="flex justify-end gap-2.5 mt-2">
             <button type="button" onClick={onClose} className="btn btn-secondary" disabled={isPending}>
               Cancel
             </button>
