@@ -3,7 +3,7 @@ import { requireVentureManager } from '@/lib/auth/requireRole'
 import { getPortfolioSnapshot, getTrendData } from '@/lib/venture-manager/portfolioAnalytics'
 import { getAllActiveNotes } from '@/lib/venture-manager/queries'
 import { VentureManagerDashboardClient } from '@/components/venture-manager/VentureManagerDashboardClient'
-import { VentureManagerDashboardSkeleton } from '@/components/venture-manager/VentureManagerDashboardSkeleton'
+import { PortfolioOverviewSkelton } from '@/components/venture-manager/PortfolioOverviewSkelton'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default function VentureManagerDashboardPage() {
   return (
-    <Suspense fallback={<VentureManagerDashboardSkeleton />}>
+    <Suspense fallback={<PortfolioOverviewSkelton />}>
       <VentureManagerDashboardContent />
     </Suspense>
   )
