@@ -1,10 +1,11 @@
 'use client'
 
-import { useActionState, useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createWeeklyPlan, updateWeeklyPlan, deleteWeeklyPlan } from '@/features/weekly-plans/actions'
-import type { ActionState, WeeklyPlan, Domain, Task } from '@/types'
+import type { WeeklyPlan, Domain, Task } from '@/types'
 import { createTask, updateTaskStatus } from '@/features/tasks/actions'
+import { useServerAction } from '@/lib/hooks/useServerAction'
 import { DomainSelectWithQuickAdd } from '@/components/domains/DomainSelectWithQuickAdd'
 import { TaskEditModal, type StaffMemberOption } from '@/components/tasks/TaskEditModal'
 import { ModalOverlay } from '@/components/ui/ModalOverlay'
@@ -49,11 +50,15 @@ export function WeeklyPlanClient({
 }: Props) {
   const router = useRouter()
 
-  const [createPlanState, createPlanAction, createPlanPending] = useActionState<ActionState, FormData>(createWeeklyPlan, {})
-  const [updatePlanState, updatePlanAction, updatePlanPending] = useActionState<ActionState, FormData>(updateWeeklyPlan, {})
-  const [deletePlanState, deletePlanAction, deletePlanPending] = useActionState<ActionState, FormData>(deleteWeeklyPlan, {})
-  const [createTaskState, createTaskAction, createTaskPending] = useActionState<ActionState, FormData>(createTask, {})
-  const [updateStatusState, updateStatusAction, updateStatusPending] = useActionState<ActionState, FormData>(updateTaskStatus, {})
+  const [createPlan, createPlanPending] = useServerAction({
+    onSuccess: () => setShowCreatePlanModal(false),
+  })
+  const [updatePlan, updatePlanPending] = useServerAction({
+    onSuccess: () => setEditingPlan(false),
+  })
+  const [deletePlan, deletePlanPending] = useServerAction()
+  const [createTaskAction, createTaskPending] = useServerAction()
+  const [updateStatusAction, updateStatusPending] = useServerAction()
 
   const [showCreatePlanModal, setShowCreatePlanModal] = useState(false)
   const [showCreateTask, setShowCreateTask] = useState(false)
@@ -68,21 +73,74 @@ export function WeeklyPlanClient({
   const [newPlanStart, setNewPlanStart] = useState(toDateStr(defaultMonday))
   const [newPlanEnd, setNewPlanEnd] = useState(toDateStr(defaultSunday))
 
-  // Close create modal on success
-  useEffect(() => {
-    if (createPlanState?.success) {
-      setShowCreatePlanModal(false)
-    }
-  }, [createPlanState])
-
-  // Close edit plan on success
-  useEffect(() => {
-    if (updatePlanState?.success) {
-      setEditingPlan(false)
-    }
-  }, [updatePlanState])
-
   const todayStr = toDateStr(new Date())
+
+  function handleCreatePlan(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const title = String(formData.get('title') || 'Weekly plan')
+    createPlan(() => createWeeklyPlan({}, formData), {
+      success: {
+        title: 'Weekly plan created successfully.',
+        description: `“${title}” is ready to plan tasks.`,
+      },
+      error: (message) => ({ title: 'Could not create weekly plan.', description: message }),
+    })
+  }
+
+  function handleUpdatePlan(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    updatePlan(() => updateWeeklyPlan({}, formData), {
+      success: {
+        title: 'Weekly plan updated successfully.',
+        description: `Changes to “${activePlan?.title || 'weekly plan'}” have been saved.`,
+      },
+      error: (message) => ({ title: 'Could not update weekly plan.', description: message }),
+    })
+  }
+
+  function handleDeletePlan(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!confirm('Are you sure you want to delete this weekly plan? Tasks will remain unlinked.')) {
+      return
+    }
+    const formData = new FormData(e.currentTarget)
+    deletePlan(() => deleteWeeklyPlan({}, formData), {
+      success: {
+        title: 'Weekly plan deleted successfully.',
+        description: `“${activePlan?.title || 'Weekly plan'}” has been deleted.`,
+      },
+      error: (message) => ({ title: 'Could not delete weekly plan.', description: message }),
+    })
+  }
+
+  function handleCreateTask(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const title = String(formData.get('title') || 'Task')
+    createTaskAction(() => createTask({}, formData), {
+      success: {
+        title: 'Task created successfully.',
+        description: `“${title}” has been added to the plan.`,
+      },
+      error: (message) => ({ title: 'Could not create task.', description: message }),
+    })
+  }
+
+  function handleUpdateStatus(e: React.FormEvent<HTMLFormElement>, task: Task) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    const nextStatus = String(formData.get('status') || '')
+    const statusLabel = nextStatus === 'DONE' ? 'Done' : nextStatus === 'IN_PROGRESS' ? 'In Progress' : nextStatus
+    updateStatusAction(() => updateTaskStatus({}, formData), {
+      success: {
+        title: 'Task status updated.',
+        description: `“${task.title}” moved to ${statusLabel}.`,
+      },
+      error: (message) => ({ title: 'Could not update task status.', description: message }),
+    })
+  }
 
   const setDatePreset = (preset: 'this_week' | 'next_week' | 'next_month') => {
     if (preset === 'this_week') {
@@ -137,17 +195,6 @@ export function WeeklyPlanClient({
 
   return (
     <div>
-      {(createPlanState?.error || updatePlanState?.error || deletePlanState?.error || createTaskState?.error) && (
-        <div className="alert alert-error" style={{ marginBottom: 20 }}>
-          {createPlanState?.error || updatePlanState?.error || deletePlanState?.error || createTaskState?.error}
-        </div>
-      )}
-      {(createPlanState?.success || updatePlanState?.success || deletePlanState?.success || createTaskState?.success) && (
-        <div className="alert alert-success" style={{ marginBottom: 20 }}>
-          {createPlanState?.success || updatePlanState?.success || deletePlanState?.success || createTaskState?.success}
-        </div>
-      )}
-
       {/* Plan Switcher Bar */}
       <div
         style={{
@@ -262,11 +309,7 @@ export function WeeklyPlanClient({
                 >
                   {editingPlan ? 'Cancel' : '✏️ Edit Plan'}
                 </button>
-                <form action={deletePlanAction} onSubmit={(e) => {
-                  if (!confirm('Are you sure you want to delete this weekly plan? Tasks will remain unlinked.')) {
-                    e.preventDefault()
-                  }
-                }}>
+                <form onSubmit={handleDeletePlan}>
                   <input type="hidden" name="id" value={activePlan.id} />
                   <button
                     type="submit"
@@ -282,7 +325,7 @@ export function WeeklyPlanClient({
             </div>
 
             {editingPlan ? (
-              <form action={updatePlanAction} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
+              <form onSubmit={handleUpdatePlan} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
                 <input type="hidden" name="id" value={activePlan.id} />
                 <div className="grid-2">
                   <div className="form-group">
@@ -369,7 +412,7 @@ export function WeeklyPlanClient({
           {showCreateTask && (
             <div className="card" style={{ marginBottom: 20, borderColor: 'var(--color-brand)' }}>
               <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>New Task for {activePlan.title || 'Weekly Plan'}</h3>
-              <form action={createTaskAction} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <form onSubmit={handleCreateTask} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <input type="hidden" name="startup_id" value={startupId} />
                 <input type="hidden" name="weekly_plan_id" value={activePlan.id} />
                 <div className="form-group">
@@ -482,7 +525,7 @@ export function WeeklyPlanClient({
                                 ✏️ Edit
                               </button>
                               {task.status !== 'DONE' && (
-                                <form action={updateStatusAction} style={{ display: 'flex', gap: 6 }}>
+                                <form onSubmit={(e) => handleUpdateStatus(e, task)} style={{ display: 'flex', gap: 6 }}>
                                   <input type="hidden" name="task_id" value={task.id} />
                                   {task.status === 'TODO' && (
                                     <button
@@ -562,7 +605,7 @@ export function WeeklyPlanClient({
                                 ✏️ Edit
                               </button>
                               {task.status !== 'DONE' && (
-                                <form action={updateStatusAction} style={{ display: 'flex', gap: 6 }}>
+                                <form onSubmit={(e) => handleUpdateStatus(e, task)} style={{ display: 'flex', gap: 6 }}>
                                   <input type="hidden" name="task_id" value={task.id} />
                                   {task.status === 'TODO' && (
                                     <button
@@ -632,7 +675,7 @@ export function WeeklyPlanClient({
               </button>
             </div>
 
-            <form action={createPlanAction} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleCreatePlan} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <input type="hidden" name="startup_id" value={startupId} />
 
               <div className="form-group">

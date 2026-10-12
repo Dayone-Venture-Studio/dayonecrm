@@ -1,10 +1,12 @@
 'use client'
 
-import React, { useState, useRef, useTransition } from 'react'
+import React, { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { ModalOverlay } from '@/components/ui/ModalOverlay'
 import { updateStartupLogo } from '@/features/startups/actions'
+import { useServerAction } from '@/lib/hooks/useServerAction'
+import { toastService } from '@/lib/notifications/toast-service'
 import {
   Camera,
   Upload,
@@ -12,14 +14,11 @@ import {
   Trash2,
   X,
   Sparkles,
-  CheckCircle2,
-  AlertCircle,
   Tv,
   Monitor,
   LayoutGrid,
   ArrowUpRight,
 } from 'lucide-react'
-import type { ActionState } from '@/types'
 
 interface FounderLogoManagerProps {
   startupId: string
@@ -45,9 +44,14 @@ export function FounderLogoManager({
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null)
   const [removeLogoRequested, setRemoveLogoRequested] = useState(false)
-  const [statusState, setStatusState] = useState<ActionState | null>(null)
-  const [isPending, startTransition] = useTransition()
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [executeSave, isPending] = useServerAction({
+    onSuccess: () => {
+      router.refresh()
+      setIsOpen(false)
+    },
+  })
 
   // Compute live preview URL:
   const effectivePreviewUrl = removeLogoRequested
@@ -55,7 +59,6 @@ export function FounderLogoManager({
     : filePreviewUrl || (isUrlMode && logoUrlInput ? logoUrlInput : currentLogoUrl)
 
   const handleOpen = () => {
-    setStatusState(null)
     setRemoveLogoRequested(false)
     setSelectedFile(null)
     setFilePreviewUrl(null)
@@ -73,14 +76,13 @@ export function FounderLogoManager({
     const file = e.target.files?.[0]
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        setStatusState({ error: 'Image file size exceeds the 5MB limit.' })
+        toastService.error('Could not upload logo.', 'Image file size exceeds the 5MB limit.')
         return
       }
       setSelectedFile(file)
       setRemoveLogoRequested(false)
       const objUrl = URL.createObjectURL(file)
       setFilePreviewUrl(objUrl)
-      setStatusState(null)
     }
   }
 
@@ -97,12 +99,10 @@ export function FounderLogoManager({
     setSelectedFile(null)
     setFilePreviewUrl(null)
     setLogoUrlInput('')
-    setStatusState(null)
   }
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
-    setStatusState(null)
 
     const formData = new FormData()
     formData.append('startup_id', startupId)
@@ -115,20 +115,15 @@ export function FounderLogoManager({
       formData.append('logo_url', logoUrlInput.trim())
     }
 
-    startTransition(async () => {
-      try {
-        const res = await updateStartupLogo({}, formData)
-        setStatusState(res)
-        if (res.success) {
-          router.refresh()
-          setTimeout(() => {
-            setIsOpen(false)
-          }, 1200)
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to update logo'
-        setStatusState({ error: msg })
-      }
+    const isRemoving = removeLogoRequested
+    executeSave(() => updateStartupLogo({}, formData), {
+      success: {
+        title: isRemoving ? 'Logo removed successfully.' : 'Logo updated successfully.',
+        description: isRemoving
+          ? `“${startupName}” now uses its default monogram.`
+          : `“${startupName}” branding is live across all displays.`,
+      },
+      error: (message) => ({ title: 'Could not update logo.', description: message }),
     })
   }
 
@@ -365,47 +360,6 @@ export function FounderLogoManager({
 
             {/* Modal Body */}
             <form onSubmit={handleSave} style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
-              {/* Status Alerts */}
-              {statusState?.error && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '10px 14px',
-                    borderRadius: 8,
-                    background: '#fef2f2',
-                    border: '1px solid #fecaca',
-                    color: '#991b1b',
-                    fontSize: 13,
-                    marginBottom: 16,
-                  }}
-                >
-                  <AlertCircle size={16} style={{ flexShrink: 0 }} />
-                  <span>{statusState.error}</span>
-                </div>
-              )}
-
-              {statusState?.success && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '10px 14px',
-                    borderRadius: 8,
-                    background: '#ecfdf5',
-                    border: '1px solid #a7f3d0',
-                    color: '#065f46',
-                    fontSize: 13,
-                    marginBottom: 16,
-                  }}
-                >
-                  <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
-                  <span>{statusState.success}</span>
-                </div>
-              )}
-
               {/* ── Real-Time Multi-Context Live Preview ── */}
               <div
                 style={{

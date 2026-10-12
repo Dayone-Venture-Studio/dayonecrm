@@ -1,8 +1,10 @@
 'use client'
 
-import React, { useState, useTransition, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Plus, Check, X, FolderPlus } from 'lucide-react'
 import { createDomain } from '@/features/domains/actions'
+import { useServerAction } from '@/lib/hooks/useServerAction'
+import { toastService } from '@/lib/notifications/toast-service'
 import type { Domain } from '@/types'
 
 interface Props {
@@ -26,10 +28,18 @@ export function DomainSelectWithQuickAdd({
   const [selectedId, setSelectedId] = useState<string>(defaultValue)
   const [isAdding, setIsAdding] = useState(false)
   const [newDomainName, setNewDomainName] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [successMsg, setSuccessMsg] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const [executeCreate, isPending] = useServerAction<Domain>({
+    onSuccess: (created) => {
+      if (!created) return
+      setDomainList((prev) => [...prev, created])
+      setSelectedId(created.id)
+      if (onChange) onChange(created.id)
+      setIsAdding(false)
+      setNewDomainName('')
+    },
+  })
 
   // Sync if initialDomains changes externally
   useEffect(() => {
@@ -62,7 +72,7 @@ export function DomainSelectWithQuickAdd({
     e.stopPropagation()
     const trimmed = newDomainName.trim()
     if (!trimmed) {
-      setError('Please enter a domain name')
+      toastService.error('Could not create domain.', 'Please enter a domain name.')
       return
     }
 
@@ -75,35 +85,20 @@ export function DomainSelectWithQuickAdd({
       if (onChange) onChange(exists.id)
       setIsAdding(false)
       setNewDomainName('')
-      setSuccessMsg(`"${exists.name}" selected`)
-      setTimeout(() => setSuccessMsg(null), 2500)
+      toastService.success('Domain already exists.', `“${exists.name}” selected.`)
       return
     }
 
-    setError(null)
-    startTransition(async () => {
-      try {
-        const formData = new FormData()
-        formData.append('startup_id', startupId)
-        formData.append('name', trimmed)
+    const formData = new FormData()
+    formData.append('startup_id', startupId)
+    formData.append('name', trimmed)
 
-        const res = await createDomain({}, formData)
-        if (res.error) {
-          setError(res.error)
-        } else if (res.data) {
-          const created = res.data as Domain
-          setDomainList((prev) => [...prev, created])
-          setSelectedId(created.id)
-          if (onChange) onChange(created.id)
-          setIsAdding(false)
-          setNewDomainName('')
-          setSuccessMsg(`"${created.name}" created & selected!`)
-          setTimeout(() => setSuccessMsg(null), 3000)
-        }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to add domain'
-        setError(msg)
-      }
+    executeCreate(() => createDomain({}, formData), {
+      success: (data) => ({
+        title: 'Domain created successfully.',
+        description: `“${data?.name ?? trimmed}” created and selected.`,
+      }),
+      error: (message) => ({ title: 'Could not create domain.', description: message }),
     })
   }
 
@@ -127,7 +122,6 @@ export function DomainSelectWithQuickAdd({
             onClick={(e) => {
               e.preventDefault()
               setIsAdding(true)
-              setError(null)
             }}
             style={{
               background: 'none',
@@ -170,25 +164,6 @@ export function DomainSelectWithQuickAdd({
         </option>
       </select>
 
-      {/* Success Notification */}
-      {successMsg && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            fontSize: 11.5,
-            color: '#059669',
-            marginTop: 4,
-            fontWeight: 600,
-            animation: 'fadeIn 0.15s ease',
-          }}
-        >
-          <Check size={12} />
-          <span>{successMsg}</span>
-        </div>
-      )}
-
       {/* Inline Quick Add Domain Mini-Form */}
       {isAdding && (
         <div
@@ -224,17 +199,13 @@ export function DomainSelectWithQuickAdd({
               ref={inputRef}
               type="text"
               value={newDomainName}
-              onChange={(e) => {
-                setNewDomainName(e.target.value)
-                setError(null)
-              }}
+              onChange={(e) => setNewDomainName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
                   handleQuickAdd(e)
                 } else if (e.key === 'Escape') {
                   setIsAdding(false)
-                  setError(null)
                 }
               }}
               placeholder="e.g. Growth Marketing, Logistics, R&D..."
@@ -278,7 +249,6 @@ export function DomainSelectWithQuickAdd({
               onClick={() => {
                 setIsAdding(false)
                 setNewDomainName('')
-                setError(null)
               }}
               disabled={isPending}
               className="btn btn-secondary btn-sm"
@@ -292,12 +262,6 @@ export function DomainSelectWithQuickAdd({
               <X size={13} />
             </button>
           </div>
-
-          {error && (
-            <div style={{ fontSize: 11, color: '#dc2626', marginTop: 4, fontWeight: 500 }}>
-              {error}
-            </div>
-          )}
         </div>
       )}
     </div>

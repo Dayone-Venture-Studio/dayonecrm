@@ -1,10 +1,10 @@
 'use client'
 
-import { useActionState, useEffect } from 'react'
 import { createTask } from '@/features/tasks/actions'
 import { DomainSelectWithQuickAdd } from '@/components/domains/DomainSelectWithQuickAdd'
 import { ModalOverlay } from '@/components/ui/ModalOverlay'
-import type { ActionState, Domain, WeeklyPlan } from '@/types'
+import { useServerAction } from '@/lib/hooks/useServerAction'
+import type { Domain, WeeklyPlan } from '@/types'
 
 interface StaffMemberEntry {
   user_id: string
@@ -35,13 +35,25 @@ export function TaskCreateModal({
   currentPlanId,
   onClose,
 }: Props) {
-  const [createState, createAction, createPending] = useActionState<ActionState, FormData>(createTask, {})
-
-  useEffect(() => {
-    if (createState?.success) {
+  const [executeCreate, createPending] = useServerAction({
+    onSuccess: () => {
       onClose()
-    }
-  }, [createState, onClose])
+    },
+  })
+
+  function handleSubmit(formData: FormData) {
+    const title = String(formData.get('title') ?? 'Task')
+    executeCreate(() => createTask({}, formData), {
+      success: {
+        title: 'Task created successfully.',
+        description: `“${title}” has been added.`,
+      },
+      error: (error) => ({
+        title: 'Could not create task.',
+        description: error,
+      }),
+    })
+  }
 
   return (
     <ModalOverlay isOpen={true} onClose={onClose}>
@@ -59,13 +71,7 @@ export function TaskCreateModal({
           </button>
         </div>
 
-        {createState?.error && (
-          <div className="alert alert-error mb-4">
-            {createState.error}
-          </div>
-        )}
-
-        <form action={createAction} className="flex flex-col gap-4">
+        <form action={handleSubmit} className="flex flex-col gap-4">
           <input type="hidden" name="startup_id" value={startupId} />
           {!isFounder && currentPlanId && <input type="hidden" name="weekly_plan_id" value={currentPlanId} />}
           {isStaff && currentUserId && <input type="hidden" name="self_assign" value="true" />}

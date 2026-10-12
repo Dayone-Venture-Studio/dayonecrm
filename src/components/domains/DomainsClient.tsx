@@ -1,8 +1,8 @@
 'use client'
 
-import { useActionState } from 'react'
 import { createDomain, deleteDomain } from '@/features/domains/actions'
-import type { ActionState, Domain } from '@/types'
+import { useServerAction } from '@/lib/hooks/useServerAction'
+import type { Domain } from '@/types'
 
 interface Props {
   startupId: string
@@ -10,28 +10,41 @@ interface Props {
 }
 
 export function DomainsClient({ startupId, domains }: Props) {
-  const [createState, createAction, createPending] = useActionState<ActionState, FormData>(createDomain, {})
-  const [deleteState, deleteAction, deletePending] = useActionState<ActionState, FormData>(deleteDomain, {})
+  const [executeCreate, createPending] = useServerAction<Domain>()
+  const [executeDelete, deletePending] = useServerAction()
 
   const domainExamples = ['Marketing', 'Sales', 'Development', 'Design', 'Operations', 'Finance']
 
+  function handleCreate(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    executeCreate(() => createDomain({}, formData), {
+      success: (data) => ({
+        title: 'Domain created successfully.',
+        description: `“${data?.name ?? 'Domain'}” is ready to use.`,
+      }),
+      error: (message) => ({ title: 'Could not create domain.', description: message }),
+    })
+  }
+
+  function handleDelete(e: React.FormEvent<HTMLFormElement>, domain: Domain) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    executeDelete(() => deleteDomain({}, formData), {
+      success: {
+        title: 'Domain deleted successfully.',
+        description: `“${domain.name}” has been removed.`,
+      },
+      error: (message) => ({ title: 'Could not delete domain.', description: message }),
+    })
+  }
+
   return (
     <div>
-      {(createState?.error || deleteState?.error) && (
-        <div className="alert alert-error" style={{ marginBottom: 20 }}>
-          {createState?.error || deleteState?.error}
-        </div>
-      )}
-      {(createState?.success || deleteState?.success) && (
-        <div className="alert alert-success" style={{ marginBottom: 20 }}>
-          {createState?.success || deleteState?.success}
-        </div>
-      )}
-
       {/* Create domain form */}
       <div className="card" style={{ marginBottom: 28 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Add Domain</h2>
-        <form action={createAction} style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <form onSubmit={handleCreate} style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <input type="hidden" name="startup_id" value={startupId} />
           <input
             name="name"
@@ -59,7 +72,11 @@ export function DomainsClient({ startupId, domains }: Props) {
           {domainExamples
             .filter((ex) => !domains.some((d) => d.name.toLowerCase() === ex.toLowerCase()))
             .map((ex) => (
-              <form key={ex} action={createAction} style={{ display: 'inline-block', marginRight: 6, marginTop: 6 }}>
+              <form
+                key={ex}
+                onSubmit={handleCreate}
+                style={{ display: 'inline-block', marginRight: 6, marginTop: 6 }}
+              >
                 <input type="hidden" name="startup_id" value={startupId} />
                 <input type="hidden" name="name" value={ex} />
                 <button type="submit" className="btn btn-ghost btn-sm" style={{ fontSize: 12 }}>
@@ -83,7 +100,7 @@ export function DomainsClient({ startupId, domains }: Props) {
             <div key={domain.id} className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ fontSize: 28, marginBottom: 10 }}>🗂️</div>
-                <form action={deleteAction}>
+                <form onSubmit={(e) => handleDelete(e, domain)}>
                   <input type="hidden" name="id" value={domain.id} />
                   <button
                     type="submit"
