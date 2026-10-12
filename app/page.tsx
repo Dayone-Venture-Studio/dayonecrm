@@ -1,6 +1,9 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { Logo } from '@/components/brand/Logo'
+import { getSession } from '@/lib/auth/getSession'
+import { getRoleHome } from '@/lib/auth/roleHome'
 
 export const metadata: Metadata = {
   title: 'Day One — Venture Studio by iQue',
@@ -8,7 +11,10 @@ export const metadata: Metadata = {
     'Day One is a venture studio that helps startups grow from scratch with structured weekly planning, task tracking, and performance analytics.',
 }
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await getSession()
+  if (session) redirect(getRoleHome(session.role))
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-background)' }}>
       {/* ── Navigation ── */}

@@ -20,6 +20,7 @@ export const adminNav: NavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: '📊', match: 'exact' },
   { href: '/admin/registrations', label: 'Registrations', icon: '📋' },
   { href: '/admin/startups', label: 'Startups', icon: '🚀' },
+  { href: '/admin/team', label: 'Team', icon: '👥' },
   { href: '/admin/performance', label: 'Performance', icon: '📈' },
   { href: '/admin/activity', label: 'Activity', icon: '⚡' },
   { href: '/tv', label: 'Live TV Wall', icon: '📺' },
@@ -42,6 +43,10 @@ export const ventureManagerNav: NavItem[] = [
   { href: '/venture-manager', label: 'Portfolio Overview', icon: '📊', match: 'exact' },
   { href: '/venture-manager/reports', label: 'Reports', icon: '📈' },
   { href: '/venture-manager/my-notes', label: 'My Notes', icon: '📝' },
+]
+
+export const dailySprintNav: NavItem[] = [
+  { href: '/daily-sprint', label: 'Daily Sprint', icon: '🗓️', match: 'exact' },
 ]
 
 /** Founder nav gets a TV wall link pointed at that founder's own startup when known. */

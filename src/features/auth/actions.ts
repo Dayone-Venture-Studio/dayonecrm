@@ -3,7 +3,8 @@
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-import type { ActionState } from '@/types'
+import { getRoleHome } from '@/lib/auth/roleHome'
+import type { ActionState, Role } from '@/types'
 
 const LoginSchema = z.object({
   email: z.string().email({ message: 'Invalid email address' }),
@@ -47,12 +48,7 @@ export async function login(
   if (!profile) return { error: 'Profile not found. Contact administrator.' }
 
   // Redirect based on role
-  if (profile.role === 'ADMIN') redirect('/admin')
-  if (profile.role === 'FOUNDER') redirect('/founder')
-  if (profile.role === 'STAFF') redirect('/staff')
-  if (profile.role === 'VENTURE_MANAGER') redirect('/venture-manager')
-
-  redirect('/')
+  redirect(getRoleHome(profile.role as Role))
 }
 
 export async function logout(): Promise<void> {
