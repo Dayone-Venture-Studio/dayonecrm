@@ -14,7 +14,7 @@ export function PerformanceScreenFrame({ name, index, total, prevId, nextId, chi
   return (
     <div className="w-full h-full flex flex-col">
       <header className="flex items-start justify-between gap-6 px-12 pt-10 pb-6 shrink-0">
-        <h1 className="text-[64px] leading-none font-medium tracking-tight text-black">
+        <h1 className="text-[4cqw] leading-none font-medium tracking-tight text-black">
           {name}
         </h1>
         <div className="pt-2">

@@ -21,10 +21,10 @@ export function PerformanceScreenNav({ currentName, index, total, prevId, nextId
   return (
     <div className="flex items-center gap-3">
       <div className="text-right mr-1 hidden sm:block">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-black/40">
+        <div className="text-[1cqw] uppercase tracking-[0.22em] text-black/40">
           Performance View
         </div>
-        <div className="text-sm font-medium text-black/75 max-w-[260px] truncate">
+        <div className="text-[1cqw] font-medium text-black/75 max-w-[260px] truncate">
           {currentName}
         </div>
       </div>
@@ -38,7 +38,7 @@ export function PerformanceScreenNav({ currentName, index, total, prevId, nextId
         <ChevronLeft className="w-5 h-5" />
       </button>
 
-      <span className="text-sm text-black/45 tabular-nums w-12 text-center">
+      <span className="text-[1cqw] text-black/45 tabular-nums w-12 text-center">
         {index + 1} / {total}
       </span>
 
