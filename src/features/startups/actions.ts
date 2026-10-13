@@ -243,13 +243,15 @@ export async function deleteStartup(
   ])
 
   // Log activity with enhanced metadata BEFORE deletion
-  // (activity_logs will be cascade deleted, so we log it now)
+  // Note: We don't pass startupId because the startup will be deleted,
+  // and the activity_logs trigger would try to create a telemetry_event
+  // with a foreign key to the deleted startup
   await logActivity({
-    startupId,
     action: 'DELETED_STARTUP',
     entityType: 'startup',
     entityId: startupId,
     metadata: {
+      startup_id: startupId,
       startup_name: startup.name,
       startup_email: startup.email,
       startup_status: startup.status,
