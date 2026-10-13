@@ -31,16 +31,18 @@ export async function WeeklyMilestonesScreen() {
   }
 
   return (
-    <div className="flex-1 flex flex-row items-stretch justify-center gap-x-[6vw] w-full min-h-0 border-t border-black/15">
+    <div className="flex flex-1 w-full min-h-0 items-stretch border-t border-black/15 px-[2vw]">
       {rows.map((row, index) => (
         <Fragment key={row.id}>
-          {index > 0 && <div className="w-px shrink-0 self-stretch bg-black/15" />}
-          <div className="flex-1 min-w-0 max-w-[30vw] flex flex-col px-6 pt-10 pb-6">
-            <h2 className="text-[2vw] font-medium text-black mb-8 text-center truncate w-full">
+          {index > 0 && (
+            <div className="mx-[2vw] w-px shrink-0 self-stretch bg-black/15" />
+          )}
+          <div className="flex flex-1 min-w-0 flex-col px-4 pt-[4vh] pb-[3vh]">
+            <h2 className="mb-[4vh] w-full shrink-0 truncate text-center text-[2vw] leading-tight font-medium text-black">
               {row.name}
             </h2>
 
-            <div className="flex flex-col gap-5 flex-1 min-h-0 w-full">
+            <div className="flex flex-1 min-h-0 w-full flex-col items-center gap-5">
               {row.milestones.length === 0 ? (
                 <div className="flex-1 flex items-center justify-center text-black/30 text-sm">
                   No milestones yet
@@ -51,7 +53,7 @@ export async function WeeklyMilestonesScreen() {
                   return (
                     <div
                       key={i}
-                      className={`flex-1 min-h-0 flex flex-col justify-center rounded-[40px] px-7 py-6 ${style.card}`}
+                      className={`mx-auto flex w-full max-w-[40rem] flex-1 min-h-0 flex-col justify-center rounded-[40px] px-7 py-6 ${style.card}`}
                     >
                       <div
                         className="text-[4vw] leading-none font-medium tracking-tighter mb-2"
