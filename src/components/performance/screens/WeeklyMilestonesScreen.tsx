@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { getWeeklyMilestoneRows } from '@/lib/performance/getPerformanceDisplayData'
 
 const CARD_STYLES = [
@@ -30,46 +31,44 @@ export async function WeeklyMilestonesScreen() {
   }
 
   return (
-    <div className="flex-1 flex flex-row w-full min-h-0 border-t border-black/15">
+    <div className="flex-1 flex flex-row items-stretch justify-center gap-x-[6vw] w-full min-h-0 border-t border-black/15">
       {rows.map((row, index) => (
-        <div
-          key={row.id}
-          className={`flex-1 min-w-0 flex flex-col px-6 pt-10 pb-6 ${
-            index === rows.length - 1 ? '' : 'border-r border-black/15'
-          }`}
-        >
-          <h2 className="text-3xl font-medium text-black mb-8 text-center truncate w-full">
-            {row.name}
-          </h2>
+        <Fragment key={row.id}>
+          {index > 0 && <div className="w-px shrink-0 self-stretch bg-black/15" />}
+          <div className="flex-1 min-w-0 max-w-[30vw] flex flex-col px-6 pt-10 pb-6">
+            <h2 className="text-[2vw] font-medium text-black mb-8 text-center truncate w-full">
+              {row.name}
+            </h2>
 
-          <div className="flex flex-col gap-5 flex-1 min-h-0 w-full">
-            {row.milestones.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center text-black/30 text-sm">
-                No milestones yet
-              </div>
-            ) : (
-              row.milestones.slice(0, CARD_STYLES.length).map((milestone, i) => {
-                const style = CARD_STYLES[i]
-                return (
-                  <div
-                    key={i}
-                    className={`flex-1 min-h-0 flex flex-col justify-center rounded-[40px] px-7 py-6 ${style.card}`}
-                  >
+            <div className="flex flex-col gap-5 flex-1 min-h-0 w-full">
+              {row.milestones.length === 0 ? (
+                <div className="flex-1 flex items-center justify-center text-black/30 text-sm">
+                  No milestones yet
+                </div>
+              ) : (
+                row.milestones.slice(0, CARD_STYLES.length).map((milestone, i) => {
+                  const style = CARD_STYLES[i]
+                  return (
                     <div
-                      className="text-[64px] leading-none font-medium tracking-tighter mb-2"
-                      style={{ color: style.percent }}
+                      key={i}
+                      className={`flex-1 min-h-0 flex flex-col justify-center rounded-[40px] px-7 py-6 ${style.card}`}
                     >
-                      {milestone.percent}%
+                      <div
+                        className="text-[4vw] leading-none font-medium tracking-tighter mb-2"
+                        style={{ color: style.percent }}
+                      >
+                        {milestone.percent}%
+                      </div>
+                      <div className={`text-[1vw] font-medium leading-tight truncate ${style.text}`}>
+                        {milestone.text}
+                      </div>
                     </div>
-                    <div className={`text-sm font-medium leading-tight ${style.text}`}>
-                      {milestone.text}
-                    </div>
-                  </div>
-                )
-              })
-            )}
+                  )
+                })
+              )}
+            </div>
           </div>
-        </div>
+        </Fragment>
       ))}
     </div>
   )
