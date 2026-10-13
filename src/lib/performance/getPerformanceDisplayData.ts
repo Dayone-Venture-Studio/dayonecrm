@@ -46,6 +46,20 @@ export interface StartupHealthRow {
   cac: number | null
 }
 
+export interface CriticalBlocker {
+  id: string
+  title: string
+  department: string | null
+  ownerName: string
+  daysOverdue?: number
+}
+
+export interface StartupWithBlockers {
+  id: string
+  name: string
+  blockers: CriticalBlocker[]
+}
+
 const MILESTONE_LIMIT = 3
 
 function sortBareLogicFirst<T extends { name: string }>(rows: T[]): T[] {
@@ -166,6 +180,127 @@ export async function getStartupHealthData(): Promise<StartupHealthRow[]> {
     burnRate: startup.monthly_burn_rate ?? null,
     cac: startup.customer_acquisition_cost ?? null,
   }))
+}
+
+/**
+ * Get critical blockers for all active startups.
+ * Prioritizes startups with AT_RISK performance status and shows their incomplete/overdue tasks.
+ * Returns ALL active startups with their critical tasks.
+ */
+export async function getCriticalBlockersData(): Promise<StartupWithBlockers[]> {
+  const supabase = getAdminClient()
+
+  // Get all active startups with their latest performance status
+  const { data: startups } = await supabase
+    .from('startups')
+    .select('id, name')
+    .eq('status', 'ACTIVE')
+    .order('name', { ascending: true })
+
+  if (!startups) return []
+
+  // Get latest performance status for each startup
+  const { data: performances } = await supabase
+    .from('weekly_performance')
+    .select('startup_id, performance_status, overdue_tasks, created_at')
+    .order('created_at', { ascending: false })
+
+  // Map latest performance per startup
+  const latestPerformance = new Map<string, { status: string; overdue: number }>()
+  for (const perf of performances || []) {
+    if (!latestPerformance.has(perf.startup_id)) {
+      latestPerformance.set(perf.startup_id, {
+        status: perf.performance_status,
+        overdue: perf.overdue_tasks,
+      })
+    }
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  
+  // Get incomplete tasks (TODO or IN_PROGRESS)
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select(`
+      id,
+      title,
+      due_date,
+      startup_id,
+      assigned_to,
+      domain_id,
+      priority,
+      status,
+      assigned_profile:assigned_to (
+        full_name,
+        department
+      ),
+      domain:domain_id (
+        name
+      )
+    `)
+    .neq('status', 'DONE')
+    .limit(200)
+    .order('due_date', { ascending: true, nullsFirst: false })
+
+  // Group tasks by startup, prioritizing overdue and high priority
+  const tasksByStartup = new Map<string, CriticalBlocker[]>()
+  
+  for (const task of tasks || []) {
+    const startupId = task.startup_id
+    const profile = task.assigned_profile as unknown as { full_name: string; department: string | null } | null
+    const domain = task.domain as unknown as { name: string } | null
+    
+    // Calculate days overdue if task has a due date in the past
+    let daysOverdue: number | undefined
+    if (task.due_date) {
+      const dueDate = new Date(task.due_date)
+      const todayDate = new Date(today)
+      const diff = Math.floor((todayDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+      if (diff > 0) {
+        daysOverdue = diff
+      }
+    }
+    
+    const blocker: CriticalBlocker = {
+      id: task.id,
+      title: task.title,
+      department: domain?.name ?? profile?.department ?? 'General',
+      ownerName: profile?.full_name ?? (task.assigned_to ? 'Unknown' : 'Unassigned'),
+      daysOverdue,
+    }
+
+    const existing = tasksByStartup.get(startupId) || []
+    existing.push(blocker)
+    tasksByStartup.set(startupId, existing)
+  }
+
+  // Map ALL startups with their blockers, prioritizing AT_RISK startups
+  const result = startups.map((startup) => {
+    const perf = latestPerformance.get(startup.id)
+    const allBlockers = tasksByStartup.get(startup.id) || []
+    
+    // Sort blockers: overdue first, then by priority
+    const sortedBlockers = allBlockers.sort((a, b) => {
+      if (a.daysOverdue && !b.daysOverdue) return -1
+      if (!a.daysOverdue && b.daysOverdue) return 1
+      if (a.daysOverdue && b.daysOverdue) return b.daysOverdue - a.daysOverdue
+      return 0
+    })
+    
+    return {
+      id: startup.id,
+      name: startup.name,
+      blockers: sortedBlockers.slice(0, 3), // Top 3 most critical
+      isAtRisk: perf?.status === 'AT_RISK',
+    }
+  })
+
+  // Sort: AT_RISK startups first, then by name
+  return result.sort((a, b) => {
+    if (a.isAtRisk && !b.isAtRisk) return -1
+    if (!a.isAtRisk && b.isAtRisk) return 1
+    return a.name.localeCompare(b.name)
+  }).map(({ isAtRisk, ...rest }) => rest) // Remove isAtRisk flag from output
 }
 
 /**

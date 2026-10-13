@@ -3,6 +3,7 @@ import { MonthlyPerformanceScreen } from './screens/MonthlyPerformanceScreen'
 import { WeeklyMilestonesScreen } from './screens/WeeklyMilestonesScreen'
 import { FoundersOfTheWeekScreen } from './screens/FoundersOfTheWeekScreen'
 import { StartupHealthScreen } from './screens/StartupHealthScreen'
+import { CriticalBlockersScreen } from './screens/CriticalBlockersScreen'
 
 export interface PerformanceScreen {
   id: string
@@ -36,6 +37,12 @@ export const PERFORMANCE_SCREENS: PerformanceScreen[] = [
     id: 'startup-health',
     name: 'Startup Health',
     Component: StartupHealthScreen,
+    darkMode: true,
+  },
+  {
+    id: 'critical-blockers',
+    name: 'Critical Blockers',
+    Component: CriticalBlockersScreen,
     darkMode: true,
   },
 ]
