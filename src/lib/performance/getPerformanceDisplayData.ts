@@ -60,6 +60,15 @@ export interface StartupWithBlockers {
   blockers: CriticalBlocker[]
 }
 
+export interface StartupHealthMetrics {
+  id: string
+  name: string
+  healthScore: number
+  teamMorale: number
+  activeTasks: number
+  weeklyCompletion: number
+}
+
 const MILESTONE_LIMIT = 3
 
 function sortBareLogicFirst<T extends { name: string }>(rows: T[]): T[] {
@@ -301,6 +310,119 @@ export async function getCriticalBlockersData(): Promise<StartupWithBlockers[]> 
     if (!a.isAtRisk && b.isAtRisk) return 1
     return a.name.localeCompare(b.name)
   }).map(({ isAtRisk, ...rest }) => rest) // Remove isAtRisk flag from output
+}
+
+/**
+ * Get overall health metrics for all active startups.
+ * Calculates health score, team morale, active tasks, and weekly completion rate.
+ */
+export async function getOverallHealthMetrics(): Promise<StartupHealthMetrics[]> {
+  const supabase = getAdminClient()
+
+  // Get all active startups
+  const { data: startups } = await supabase
+    .from('startups')
+    .select('id, name')
+    .eq('status', 'ACTIVE')
+    .order('name', { ascending: true })
+
+  if (!startups) return []
+
+  // Get latest performance for each startup
+  const { data: performances } = await supabase
+    .from('weekly_performance')
+    .select('startup_id, completion_rate, performance_status, overdue_tasks, early_rate, created_at')
+    .order('created_at', { ascending: false })
+
+  // Get task counts per startup
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('startup_id, status')
+
+  // Map latest performance per startup
+  const latestPerformance = new Map<string, {
+    completion: number
+    status: string
+    overdue: number
+    earlyRate: number
+  }>()
+  
+  for (const perf of performances || []) {
+    if (!latestPerformance.has(perf.startup_id)) {
+      latestPerformance.set(perf.startup_id, {
+        completion: perf.completion_rate,
+        status: perf.performance_status,
+        overdue: perf.overdue_tasks,
+        earlyRate: perf.early_rate,
+      })
+    }
+  }
+
+  // Count active tasks per startup
+  const activeTaskCounts = new Map<string, number>()
+  for (const task of tasks || []) {
+    if (task.status === 'IN_PROGRESS') {
+      activeTaskCounts.set(task.startup_id, (activeTaskCounts.get(task.startup_id) || 0) + 1)
+    }
+  }
+
+  // Calculate metrics for each startup
+  return startups.map((startup) => {
+    const perf = latestPerformance.get(startup.id)
+    const activeTasks = activeTaskCounts.get(startup.id) || 0
+    
+    // Calculate health score (0-100)
+    let healthScore = 0
+    
+    if (perf) {
+      // Task completion contributes 40 points
+      healthScore += (perf.completion / 100) * 40
+      
+      // Performance status contributes 30 points
+      const statusPoints = {
+        'AHEAD': 30,
+        'ON_TRACK': 25,
+        'BEHIND': 15,
+        'AT_RISK': 5,
+      }[perf.status] || 20
+      healthScore += statusPoints
+      
+      // Overdue penalty (20 points minus 2 per overdue, min 0)
+      const overduePoints = Math.max(0, 20 - (perf.overdue * 2))
+      healthScore += overduePoints
+      
+      // Active engagement (10 points if has tasks)
+      if (activeTasks > 0 || perf.completion > 0) {
+        healthScore += 10
+      }
+    }
+    
+    healthScore = Math.round(Math.min(100, Math.max(0, healthScore)))
+    
+    // Calculate team morale (1-10)
+    let teamMorale = 5
+    if (perf) {
+      const completion = perf.completion
+      if (completion >= 90) teamMorale = 9
+      else if (completion >= 80) teamMorale = 8
+      else if (completion >= 70) teamMorale = 7
+      else if (completion >= 60) teamMorale = 6
+      else if (completion >= 50) teamMorale = 5
+      else teamMorale = 4
+      
+      // Bonus for early completions
+      if (perf.earlyRate > 30) teamMorale = Math.min(10, teamMorale + 1)
+    }
+    
+    return {
+      id: startup.id,
+      name: startup.name,
+      healthScore,
+      teamMorale,
+      activeTasks,
+      weeklyCompletion: perf ? Math.round(perf.completion * 10) / 10 : 0,
+    }
+  })
 }
 
 /**
