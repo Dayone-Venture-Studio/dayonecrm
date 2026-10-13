@@ -12,8 +12,8 @@ export async function FoundersOfTheWeekScreen() {
       name: 'Rashi',
       imageUrl: '/founder_2.png',
     },
-    description: 'OATZA is a modern healthy convenience food brand creating ready-to-eat and easy-to-prepare oatmeal-based meals for busy, health-conscious consumers.',
-    startupName: 'OATZA',
+    description: 'is a modern healthy beverage brand focused on bringing real fruit and natural ingredients into convenient, great-tasting drinks. The brand aims to offer clean, refreshing beverages with a strong emphasis on real ingredients, minimal processing, and no unnecessary additives—making everyday healthy choices simpler and more enjoyable.',
+    startupName: 'Plain',
   }
 
   return (
