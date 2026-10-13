@@ -204,6 +204,12 @@ export interface VentureManagerNoteWithEntity extends VentureManagerNote {
   weekly_plan?: WeeklyPlan | null
 }
 
+export interface VentureManagerNoteWithContext extends VentureManagerNoteWithProfile {
+  startup_id: string | null
+  startup_name: string | null
+  entity_label: string | null
+}
+
 // ─── Internal Team Tasks ────────────────────────────────────────────────────
 
 export interface TeamTask {

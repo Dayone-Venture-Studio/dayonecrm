@@ -5,6 +5,7 @@ import type {
   NoteEntityType,
   NoteUrgency,
   VentureManagerNote,
+  VentureManagerNoteWithContext,
   VentureManagerNoteWithProfile,
 } from '@/types'
 
@@ -132,4 +133,106 @@ export async function getAllNotes(filters?: {
   const { data } = await query.order('created_at', { ascending: false })
   const notes = (data || []) as VentureManagerNote[]
   return await hydrateNotes(notes)
+}
+
+/**
+ * Fetches all notes enriched with both the note author/resolver profiles AND the
+ * startup each note belongs to (notes only store entity_type + entity_id).
+ *
+ * entity_id resolution:
+ *   STARTUP       -> startups.id
+ *   TASK          -> tasks.id          -> tasks.startup_id
+ *   WEEKLY_PLAN   -> weekly_plans.id   -> weekly_plans.startup_id
+ */
+export async function getAllNotesWithContext(filters?: {
+  resolved?: boolean
+  urgency?: NoteUrgency
+  entityType?: NoteEntityType
+}): Promise<VentureManagerNoteWithContext[]> {
+  const notes = await getAllNotes(filters)
+  if (notes.length === 0) return []
+
+  const supabase = await createClient()
+
+  const startupEntityIds = new Set<string>()
+  const taskEntityIds = new Set<string>()
+  const weekPlanEntityIds = new Set<string>()
+
+  for (const note of notes) {
+    if (note.entity_type === 'STARTUP') startupEntityIds.add(note.entity_id)
+    else if (note.entity_type === 'TASK') taskEntityIds.add(note.entity_id)
+    else if (note.entity_type === 'WEEKLY_PLAN') weekPlanEntityIds.add(note.entity_id)
+  }
+
+  // entity_id -> resolved context (startup id + human label for the note's subject)
+  const context = new Map<string, { startup_id: string | null; entity_label: string | null }>()
+
+  // STARTUP notes: entity_id IS the startup
+  if (startupEntityIds.size > 0) {
+    const { data } = await supabase
+      .from('startups')
+      .select('id, name')
+      .in('id', Array.from(startupEntityIds))
+    for (const s of (data || []) as { id: string; name: string }[]) {
+      context.set(s.id, { startup_id: s.id, entity_label: 'Startup note' })
+    }
+  }
+
+  // TASK notes: entity_id -> task -> its startup
+  if (taskEntityIds.size > 0) {
+    const { data } = await supabase
+      .from('tasks')
+      .select('id, startup_id, title')
+      .in('id', Array.from(taskEntityIds))
+    for (const t of (data || []) as { id: string; startup_id: string; title: string }[]) {
+      context.set(t.id, { startup_id: t.startup_id, entity_label: t.title })
+    }
+  }
+
+  // WEEKLY_PLAN notes: entity_id -> weekly plan -> its startup
+  if (weekPlanEntityIds.size > 0) {
+    const { data } = await supabase
+      .from('weekly_plans')
+      .select('id, startup_id, week_start, title')
+      .in('id', Array.from(weekPlanEntityIds))
+    for (const w of (data || []) as {
+      id: string
+      startup_id: string
+      week_start: string
+      title: string | null
+    }[]) {
+      context.set(w.id, {
+        startup_id: w.startup_id,
+        entity_label: w.title || `Week of ${new Date(w.week_start).toLocaleDateString()}`,
+      })
+    }
+  }
+
+  // Resolve startup names for every referenced startup
+  const startupIds = new Set<string>()
+  for (const c of context.values()) {
+    if (c.startup_id) startupIds.add(c.startup_id)
+  }
+
+  const startupNames = new Map<string, string>()
+  if (startupIds.size > 0) {
+    const { data } = await supabase
+      .from('startups')
+      .select('id, name')
+      .in('id', Array.from(startupIds))
+    for (const s of (data || []) as { id: string; name: string }[]) {
+      startupNames.set(s.id, s.name)
+    }
+  }
+
+  return notes.map((note) => {
+    const resolved = context.get(note.entity_id) ?? null
+    const startupId = resolved?.startup_id ?? null
+    return {
+      ...note,
+      startup_id: startupId,
+      startup_name: startupId ? startupNames.get(startupId) ?? null : null,
+      entity_label: resolved?.entity_label ?? null,
+    }
+  })
 }
