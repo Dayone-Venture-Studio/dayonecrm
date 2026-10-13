@@ -7,12 +7,11 @@ import { useLoading } from './LoadingContext'
 /**
  * TopLoaderProvider
  *
- * Full-page overlay loading animation for page navigation.
- * Shows circular spinner with dark blur backdrop during route transitions.
- *
- * Integrated with LoadingContext - stays visible until pages call useDataLoaded().
+ * Shows the initial-load overlay during hydration and starts navigation
+ * feedback from user-initiated same-origin links.
  *
  * Excluded Routes:
+ * - /
  * - /login
  * - /register
  * - /unauthorized
@@ -22,23 +21,21 @@ import { useLoading } from './LoadingContext'
  * Usage:
  * Import and add to your root layout as the first child in <body>
  */
-// How long the overlay may stay up without a page signalling `useDataLoaded()`.
-// Guards against a stuck loader on routes that never call the hook.
-const FALLBACK_FINISH_MS = 1500
-// Delay before showing, so an instant (cached) navigation never flashes it.
-const SHOW_DELAY_MS = 50
+const NAVIGATION_FALLBACK_MS = 10_000
+const SHOW_DELAY_MS = 100
+
+const EXCLUDED_ROUTES = ['/login', '/register', '/unauthorized', '/tv', '/performance']
+
+function isExcludedPath(pathname: string) {
+  return pathname === '/' || EXCLUDED_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`))
+}
 
 export function TopLoaderProvider() {
   const pathname = usePathname()
-  const { isLoading, startLoading, finishLoading, lastFinishPathRef } = useLoading()
+  const { isLoading, startLoading, finishLoading } = useLoading()
+  const [isInitialRender, setIsInitialRender] = useState(true)
   const [shouldShow, setShouldShow] = useState(false)
-
-  // Live copy of isLoading for timer callbacks (timers capture a stale value).
-  const isLoadingRef = useRef(isLoading)
-  useEffect(() => {
-    isLoadingRef.current = isLoading
-  }, [isLoading])
-
+  const previousPathRef = useRef(pathname)
   const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -53,59 +50,104 @@ export function TopLoaderProvider() {
     }
   }, [])
 
-  // Routes where the loader should NOT appear (public / unauthenticated surfaces)
-  const excludedRoutes = ['/login', '/register', '/unauthorized', '/tv', '/performance']
+  const isExcluded = isExcludedPath(pathname)
 
-  // Check if current path matches excluded routes
-  const isExcluded = excludedRoutes.some(route => pathname.startsWith(route))
+  const beginNavigation = useCallback(() => {
+    clearTimers()
+    setShouldShow(false)
+    startLoading()
+
+    showTimerRef.current = setTimeout(() => {
+      setShouldShow(true)
+    }, SHOW_DELAY_MS)
+
+    fallbackTimerRef.current = setTimeout(() => {
+      finishLoading()
+    }, NAVIGATION_FALLBACK_MS)
+  }, [clearTimers, finishLoading, startLoading])
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsInitialRender(false), 0)
+    return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    if (previousPathRef.current === pathname) return
+
+    previousPathRef.current = pathname
+    finishLoading()
+  }, [pathname, finishLoading])
+
+  useEffect(() => {
+    if (isExcluded) {
+      finishLoading()
+      clearTimers()
+    }
+  }, [isExcluded, finishLoading, clearTimers])
 
   useEffect(() => {
     if (isExcluded) return
 
-    // Case: navigation that finished in the same commit (persisted / cached
-    // route — no network, no Suspense, data already present). React runs the
-    // destination's useDataLoaded() effect before this one, and it recorded the
-    // pathname it finished for. A match means this navigation is already
-    // "loaded", so starting the overlay would leave it with nothing to hide it.
-    if (lastFinishPathRef.current === pathname) {
-      return
+    const handleClick = (event: MouseEvent) => {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return
+      }
+
+      if (!(event.target instanceof Element)) return
+      const link = event.target.closest<HTMLAnchorElement>('a[href]')
+      if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return
+
+      const destination = new URL(link.href, window.location.href)
+      if (
+        destination.origin !== window.location.origin ||
+        destination.pathname === pathname ||
+        isExcludedPath(destination.pathname)
+      ) {
+        return
+      }
+
+      beginNavigation()
     }
 
-    // Start loading on route change
-    startLoading()
+    const handlePopState = () => {
+      const destination = window.location.pathname
+      if (destination !== pathname && !isExcludedPath(destination)) {
+        beginNavigation()
+      }
+    }
 
-    // Delay before showing; skip if we finished before the delay elapsed.
-    showTimerRef.current = setTimeout(() => {
-      if (isLoadingRef.current) setShouldShow(true)
-    }, SHOW_DELAY_MS)
+    document.addEventListener('click', handleClick, true)
+    window.addEventListener('popstate', handlePopState)
 
-    // Safety net: pages that never call useDataLoaded() still clear the overlay
-    fallbackTimerRef.current = setTimeout(() => {
-      finishLoading()
-    }, FALLBACK_FINISH_MS)
+    return () => {
+      document.removeEventListener('click', handleClick, true)
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [beginNavigation, isExcluded, pathname])
 
-    return clearTimers
-  }, [pathname, isExcluded, startLoading, finishLoading, lastFinishPathRef, clearTimers])
-
-  // Hide overlay when loading finishes, and cancel any pending show/fallback so
-  // a completed navigation can't later re-stamp state or re-show the overlay.
+  // A page data signal or committed route change ends the active transition.
   useEffect(() => {
     if (!isLoading) {
-      setShouldShow(false)
       clearTimers()
     }
   }, [isLoading, clearTimers])
 
-  // Don't render on excluded routes or when not loading
-  if (isExcluded || (!isLoading && !shouldShow)) {
-    return null
-  }
+  if (isExcluded) return null
+
+  const isVisible = isInitialRender || (isLoading && shouldShow)
 
   return (
     <div
-      className={`loading-overlay ${shouldShow ? 'loading-overlay--visible' : ''}`}
+      className={`loading-overlay ${isVisible ? 'loading-overlay--visible' : ''}`}
       aria-live="polite"
-      aria-busy="true"
+      aria-busy={isInitialRender || isLoading}
+      aria-hidden={!isVisible}
       role="status"
     >
       <div className="loading-overlay__backdrop" />

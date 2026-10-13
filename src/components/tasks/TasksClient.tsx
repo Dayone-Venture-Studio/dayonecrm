@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useState } from 'react'
 import { deleteTask } from '@/features/tasks/actions'
 import { TaskEditModal } from '@/components/tasks/TaskEditModal'
 import { TaskCreateModal } from '@/components/tasks/TaskCreateModal'
@@ -10,8 +10,9 @@ import { TaskKanbanColumn } from './components/TaskKanbanColumn'
 import { useTaskStatusUpdate } from './hooks/useTaskStatusUpdate'
 import { useTaskDragDrop } from './hooks/useTaskDragDrop'
 import { useTaskFilters } from './hooks/useTaskFilters'
+import { useServerAction } from '@/lib/hooks/useServerAction'
 import type { TasksClientProps } from './types'
-import type { ActionState, Task } from '@/types'
+import type { Task } from '@/types'
 import { ClipboardList, Rocket, CheckCheck } from 'lucide-react'
 
 export function TasksClient({
@@ -30,8 +31,8 @@ export function TasksClient({
   const canEditTask = (task: Task) => isFounder || (isStaff && task.created_by === currentUserId)
   const canDeleteTask = isFounder
   
-  // Delete action state
-  const [deleteState, deleteAction, deletePending] = useActionState<ActionState, FormData>(deleteTask, {})
+  // Delete action (toast + auto transition handling)
+  const [executeDelete] = useServerAction()
 
   // Modal states
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -45,24 +46,23 @@ export function TasksClient({
 
   // Delete handler
   const handleDelete = (taskId: string) => {
+    const task = optimisticTasks.find((t) => t.id === taskId)
     const formData = new FormData()
     formData.append('id', taskId)
-    deleteAction(formData)
+    executeDelete(() => deleteTask({}, formData), {
+      success: {
+        title: 'Task deleted successfully.',
+        description: `“${task?.title ?? 'Task'}” has been deleted.`,
+      },
+      error: (error) => ({
+        title: 'Could not delete task.',
+        description: error,
+      }),
+    })
   }
 
   return (
     <div>
-      {deleteState?.error && (
-        <div className="alert alert-error mb-20">
-          {deleteState.error}
-        </div>
-      )}
-      {deleteState?.success && (
-        <div className="alert alert-success mb-20">
-          {deleteState.success}
-        </div>
-      )}
-
       <TaskToolbar
         domains={domains}
         filterDomain={filterDomain}

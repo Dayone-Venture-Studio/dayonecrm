@@ -9,7 +9,6 @@ interface Props {
   isOpen: boolean
   onClose: () => void
   action: (formData: FormData) => void
-  error?: string
   pending: boolean
   task?: TeamTaskWithDetails
   members: TeamMemberSummary[]
@@ -21,7 +20,6 @@ export function TaskFormModal({
   isOpen,
   onClose,
   action,
-  error,
   pending,
   task,
   members,
@@ -39,8 +37,6 @@ export function TaskFormModal({
 
         <form action={action} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {isEdit && task && <input type="hidden" name="id" value={task.id} />}
-
-          {error && <div className="alert alert-error">{error}</div>}
 
           <div className="form-group">
             <label className="label">Title *</label>

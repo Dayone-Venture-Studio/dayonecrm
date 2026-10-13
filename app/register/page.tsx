@@ -126,7 +126,6 @@ export default function RegisterPage() {
 
           <form
             action={formAction}
-            encType="multipart/form-data"
             style={{ display: 'flex', flexDirection: 'column', gap: 18 }}
           >
             <div className="form-group">

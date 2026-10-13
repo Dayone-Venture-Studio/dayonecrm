@@ -1,9 +1,9 @@
 'use client'
 
-import { useActionState } from 'react'
 import { useState } from 'react'
 import { addStaffMember, removeStaffMember } from '@/features/staff/actions'
-import type { ActionState, StartupMemberWithProfile } from '@/types'
+import { useServerAction } from '@/lib/hooks/useServerAction'
+import type { StartupMemberWithProfile } from '@/types'
 
 interface Props {
   startupId: string
@@ -11,23 +11,40 @@ interface Props {
 }
 
 export function StaffClient({ startupId, staff }: Props) {
-  const [addState, addAction, addPending] = useActionState<ActionState, FormData>(addStaffMember, {})
-  const [removeState, removeAction, removePending] = useActionState<ActionState, FormData>(removeStaffMember, {})
   const [showForm, setShowForm] = useState(false)
+  const [executeAdd, addPending] = useServerAction({
+    onSuccess: () => setShowForm(false),
+  })
+  const [executeRemove, removePending] = useServerAction()
+
+  function handleAdd(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const form = e.currentTarget
+    const formData = new FormData(form)
+    const name = String(formData.get('full_name') || 'Staff member')
+    executeAdd(() => addStaffMember({}, formData), {
+      success: {
+        title: 'Staff member added successfully.',
+        description: `“${name}” can now log in.`,
+      },
+      error: (message) => ({ title: 'Could not add staff member.', description: message }),
+    })
+  }
+
+  function handleRemove(e: React.FormEvent<HTMLFormElement>, member: StartupMemberWithProfile) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    executeRemove(() => removeStaffMember({}, formData), {
+      success: {
+        title: 'Staff member removed successfully.',
+        description: `“${member.profile?.full_name || 'Staff member'}” has been removed.`,
+      },
+      error: (message) => ({ title: 'Could not remove staff member.', description: message }),
+    })
+  }
 
   return (
     <div>
-      {(addState?.error || removeState?.error) && (
-        <div className="alert alert-error" style={{ marginBottom: 20 }}>
-          {addState?.error || removeState?.error}
-        </div>
-      )}
-      {(addState?.success || removeState?.success) && (
-        <div className="alert alert-success" style={{ marginBottom: 20 }}>
-          {addState?.success || removeState?.success}
-        </div>
-      )}
-
       {/* Add staff form */}
       <div style={{ marginBottom: 28 }}>
         <button
@@ -44,7 +61,7 @@ export function StaffClient({ startupId, staff }: Props) {
             <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 20 }}>
               They&apos;ll be able to log in immediately with the credentials you set.
             </p>
-            <form action={addAction} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <input type="hidden" name="startup_id" value={startupId} />
               <div className="grid-2">
                 <div className="form-group">
@@ -168,7 +185,7 @@ export function StaffClient({ startupId, staff }: Props) {
                   </div>
                 </div>
 
-                <form action={removeAction}>
+                <form onSubmit={(e) => handleRemove(e, member)}>
                   <input type="hidden" name="member_id" value={member.id} />
                   <button
                     type="submit"

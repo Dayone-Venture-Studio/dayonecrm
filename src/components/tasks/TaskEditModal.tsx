@@ -1,10 +1,10 @@
 'use client'
 
-import { useActionState, useEffect } from 'react'
 import { updateTask } from '@/features/tasks/actions'
 import { DomainSelectWithQuickAdd } from '@/components/domains/DomainSelectWithQuickAdd'
 import { ModalOverlay } from '@/components/ui/ModalOverlay'
-import type { ActionState, Task, Domain, WeeklyPlan } from '@/types'
+import { useServerAction } from '@/lib/hooks/useServerAction'
+import type { Task, Domain, WeeklyPlan } from '@/types'
 
 export interface StaffMemberOption {
   user_id: string
@@ -33,13 +33,25 @@ export function TaskEditModal({
   weeklyPlans,
   staffMembers,
 }: Props) {
-  const [state, formAction, isPending] = useActionState<ActionState, FormData>(updateTask, {})
-
-  useEffect(() => {
-    if (state?.success) {
+  const [executeUpdate, isPending] = useServerAction({
+    onSuccess: () => {
       onClose()
-    }
-  }, [state, onClose])
+    },
+  })
+
+  function handleSubmit(formData: FormData) {
+    const title = String(formData.get('title') ?? task?.title ?? 'Task')
+    executeUpdate(() => updateTask({}, formData), {
+      success: {
+        title: 'Task updated successfully.',
+        description: `Changes to “${title}” have been saved.`,
+      },
+      error: (error) => ({
+        title: 'Could not update task.',
+        description: error,
+      }),
+    })
+  }
 
   if (!task) return null
 
@@ -59,13 +71,7 @@ export function TaskEditModal({
           </button>
         </div>
 
-        {state?.error && (
-          <div className="alert alert-error mb-4">
-            {state.error}
-          </div>
-        )}
-
-        <form action={formAction} className="flex flex-col gap-4">
+        <form action={handleSubmit} className="flex flex-col gap-4">
           <input type="hidden" name="id" value={task.id} />
 
           <div className="form-group">

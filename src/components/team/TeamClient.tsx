@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition, useState } from 'react'
+import { useState } from 'react'
 import { ModalOverlay } from '@/components/ui/ModalOverlay'
 import {
   createTeamMember,
@@ -8,6 +8,7 @@ import {
   deleteTeamMember,
 } from '@/features/team/member-actions'
 import { DEPARTMENTS } from '@/lib/team/constants'
+import { useServerAction } from '@/lib/hooks/useServerAction'
 import type { Profile } from '@/types'
 
 interface Props {
@@ -19,24 +20,19 @@ const ROLE_LABEL: Record<string, string> = {
   PROJECT_MANAGER: 'Project Manager',
 }
 
-type Banner = { type: 'success' | 'error'; message: string } | null
-
 type MemberFormProps = {
   action: (formData: FormData) => void
-  error?: string
   pending: boolean
   member?: Profile
   onCancel: () => void
 }
 
-function MemberForm({ action, error, pending, member, onCancel }: MemberFormProps) {
+function MemberForm({ action, pending, member, onCancel }: MemberFormProps) {
   const isEdit = Boolean(member)
 
   return (
     <form action={action} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {isEdit && <input type="hidden" name="id" value={member!.id} />}
-
-      {error && <div className="alert alert-error">{error}</div>}
 
       <div className="grid-2">
         <div className="form-group">
@@ -130,58 +126,68 @@ function MemberForm({ action, error, pending, member, onCancel }: MemberFormProp
 }
 
 export function TeamClient({ members }: Props) {
-  const [banner, setBanner] = useState<Banner>(null)
-  const [addError, setAddError] = useState<string | undefined>()
-  const [editError, setEditError] = useState<string | undefined>()
-  const [deleteError, setDeleteError] = useState<string | undefined>()
-
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Profile | null>(null)
   const [deleting, setDeleting] = useState<Profile | null>(null)
 
-  const [addPending, startAdd] = useTransition()
-  const [editPending, startEdit] = useTransition()
-  const [deletePending, startDelete] = useTransition()
+  // Replace useTransition with useServerAction for automatic toast notifications
+  const [executeCreate, addPending] = useServerAction({
+    onSuccess: () => {
+      setShowAdd(false)
+    },
+  })
+
+  const [executeUpdate, editPending] = useServerAction({
+    onSuccess: () => {
+      setEditing(null)
+    },
+  })
+
+  const [executeDelete, deletePending] = useServerAction({
+    onSuccess: () => {
+      setDeleting(null)
+    },
+  })
 
   function handleCreate(formData: FormData) {
-    setAddError(undefined)
-    setBanner(null)
-    startAdd(async () => {
-      const result = await createTeamMember({}, formData)
-      if (result.error) {
-        setAddError(result.error)
-      } else {
-        setBanner({ type: 'success', message: result.success ?? 'Member added.' })
-        setShowAdd(false)
-      }
+    const name = String(formData.get('full_name') ?? 'Member')
+    executeCreate(() => createTeamMember({}, formData), {
+      success: {
+        title: 'Member added successfully.',
+        description: `“${name}” has been added to the team.`,
+      },
+      error: (error) => ({
+        title: 'Could not add member.',
+        description: error,
+      }),
     })
   }
 
   function handleUpdate(formData: FormData) {
-    setEditError(undefined)
-    setBanner(null)
-    startEdit(async () => {
-      const result = await updateTeamMember({}, formData)
-      if (result.error) {
-        setEditError(result.error)
-      } else {
-        setBanner({ type: 'success', message: result.success ?? 'Member updated.' })
-        setEditing(null)
-      }
+    const name = String(formData.get('full_name') ?? 'Member')
+    executeUpdate(() => updateTeamMember({}, formData), {
+      success: {
+        title: 'Member updated successfully.',
+        description: `Changes to “${name}” have been saved.`,
+      },
+      error: (error) => ({
+        title: 'Could not update member.',
+        description: error,
+      }),
     })
   }
 
   function handleDelete(formData: FormData) {
-    setDeleteError(undefined)
-    setBanner(null)
-    startDelete(async () => {
-      const result = await deleteTeamMember({}, formData)
-      if (result.error) {
-        setDeleteError(result.error)
-      } else {
-        setBanner({ type: 'success', message: result.success ?? 'Member deleted.' })
-        setDeleting(null)
-      }
+    const name = deleting?.full_name ?? 'Member'
+    executeDelete(() => deleteTeamMember({}, formData), {
+      success: {
+        title: 'Member deleted successfully.',
+        description: `“${name}” has been removed from the team.`,
+      },
+      error: (error) => ({
+        title: 'Could not delete member.',
+        description: error,
+      }),
     })
   }
 
@@ -192,12 +198,6 @@ export function TeamClient({ members }: Props) {
           + Add Member
         </button>
       </div>
-
-      {banner && (
-        <div className={`alert alert-${banner.type}`} style={{ marginBottom: 16 }}>
-          {banner.message}
-        </div>
-      )}
 
       {members.length === 0 ? (
         <div className="empty-state">
@@ -295,7 +295,6 @@ export function TeamClient({ members }: Props) {
           </p>
           <MemberForm
             action={handleCreate}
-            error={addError}
             pending={addPending}
             onCancel={() => setShowAdd(false)}
           />
@@ -309,7 +308,6 @@ export function TeamClient({ members }: Props) {
           {editing && (
             <MemberForm
               action={handleUpdate}
-              error={editError}
               pending={editPending}
               member={editing}
               onCancel={() => setEditing(null)}
@@ -327,11 +325,6 @@ export function TeamClient({ members }: Props) {
             <strong style={{ color: 'var(--color-text-primary)' }}>{deleting?.full_name}</strong>{' '}
             and their login account. This cannot be undone.
           </p>
-          {deleteError && (
-            <div className="alert alert-error" style={{ marginBottom: 12 }}>
-              {deleteError}
-            </div>
-          )}
           <form
             action={handleDelete}
             style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 12 }}

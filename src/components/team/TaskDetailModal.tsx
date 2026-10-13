@@ -11,7 +11,6 @@ interface Props {
   loading: boolean
   onAddComment: (formData: FormData) => void
   commentPending: boolean
-  commentError?: string
   canDelete: boolean
   onEdit: (task: TeamTaskWithDetails) => void
   onDelete: (task: TeamTaskWithDetails) => void
@@ -45,7 +44,6 @@ export function TaskDetailModal({
   loading,
   onAddComment,
   commentPending,
-  commentError,
   canDelete,
   onEdit,
   onDelete,
@@ -176,7 +174,6 @@ export function TaskDetailModal({
 
             <form action={onAddComment} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <input type="hidden" name="task_id" value={task.id} />
-              {commentError && <div className="alert alert-error">{commentError}</div>}
               <textarea
                 name="comment"
                 className="input"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useOptimistic, useState, useTransition } from 'react'
+import { useOptimistic, useRef, useState, useTransition } from 'react'
 import { TaskFormModal } from '@/components/team/TaskFormModal'
 import { TaskDetailModal } from '@/components/team/TaskDetailModal'
 import { ModalOverlay, ModalCloseButton } from '@/components/ui/ModalOverlay'
@@ -12,6 +12,7 @@ import {
 } from '@/features/team/task-actions'
 import { addTeamTaskComment, fetchTeamTaskDetail } from '@/features/team/comment-actions'
 import { DEPARTMENTS } from '@/lib/team/constants'
+import { useServerAction } from '@/lib/hooks/useServerAction'
 import type {
   TaskStatus,
   TeamMemberSummary,
@@ -43,8 +44,6 @@ const PRIORITY_BADGE: Record<string, string> = {
   HIGH: 'badge-danger',
 }
 
-type Banner = { type: 'success' | 'error'; message: string } | null
-
 function todayStr() {
   return new Date().toISOString().split('T')[0]
 }
@@ -60,8 +59,6 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
       state.map((t) => (t.id === action.id ? { ...t, status: action.status } : t))
   )
 
-  const [banner, setBanner] = useState<Banner>(null)
-
   const [filterAssignee, setFilterAssignee] = useState('')
   const [filterDepartment, setFilterDepartment] = useState('')
   const [filterPriority, setFilterPriority] = useState('')
@@ -71,25 +68,39 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
   const [pendingMove, setPendingMove] = useState<{ task: TeamTaskWithDetails; to: TaskStatus } | null>(null)
 
   const [showCreate, setShowCreate] = useState(false)
-  const [createError, setCreateError] = useState<string | undefined>()
 
   const [editing, setEditing] = useState<TeamTaskWithDetails | null>(null)
-  const [editError, setEditError] = useState<string | undefined>()
 
   const [deleting, setDeleting] = useState<TeamTaskWithDetails | null>(null)
-  const [deleteError, setDeleteError] = useState<string | undefined>()
 
   const [detailId, setDetailId] = useState<string | null>(null)
   const [detail, setDetail] = useState<TeamTaskDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
-  const [commentError, setCommentError] = useState<string | undefined>()
+  const commentTargetRef = useRef<string | null>(null)
 
-  const [createPending, startCreate] = useTransition()
-  const [editPending, startEdit] = useTransition()
-  const [statusPending, startStatus] = useTransition()
-  const [deletePending, startDelete] = useTransition()
+  const [executeCreate, createPending] = useServerAction({
+    onSuccess: () => setShowCreate(false),
+  })
+
+  const [executeUpdate, editPending] = useServerAction({
+    onSuccess: () => setEditing(null),
+  })
+
+  const [executeDelete, deletePending] = useServerAction({
+    onSuccess: () => setDeleting(null),
+  })
+
+  const [executeStatus, statusPending] = useServerAction()
+
   const [detailPending, startDetail] = useTransition()
-  const [commentPending, startComment] = useTransition()
+  const [executeComment, commentPending] = useServerAction({
+    onSuccess: async () => {
+      const id = commentTargetRef.current
+      if (!id) return
+      const d = await fetchTeamTaskDetail(id)
+      if (d) setDetail(d)
+    },
+  })
 
   const visible = optimisticTasks.filter((t) => {
     if (!isProjectManager) return true
@@ -100,48 +111,47 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
   })
 
   function handleCreate(formData: FormData) {
-    setCreateError(undefined)
-    setBanner(null)
-    startCreate(async () => {
-      const res = await createTeamTask({}, formData)
-      if (res.error) {
-        setCreateError(res.error)
-      } else {
-        setShowCreate(false)
-        setBanner({ type: 'success', message: res.success ?? 'Task created.' })
-      }
+    const title = String(formData.get('title') ?? 'Task')
+    executeCreate(() => createTeamTask({}, formData), {
+      success: {
+        title: 'Task created successfully.',
+        description: `“${title}” has been added to the board.`,
+      },
+      error: (error) => ({
+        title: 'Could not create task.',
+        description: error,
+      }),
     })
   }
 
   function handleUpdate(formData: FormData) {
-    setEditError(undefined)
-    setBanner(null)
-    startEdit(async () => {
-      const res = await updateTeamTask({}, formData)
-      if (res.error) {
-        setEditError(res.error)
-      } else {
-        setEditing(null)
-        setBanner({ type: 'success', message: res.success ?? 'Task updated.' })
-      }
+    const title = String(formData.get('title') ?? 'Task')
+    executeUpdate(() => updateTeamTask({}, formData), {
+      success: {
+        title: 'Task updated successfully.',
+        description: `Changes to “${title}” have been saved.`,
+      },
+      error: (error) => ({
+        title: 'Could not update task.',
+        description: error,
+      }),
     })
   }
 
   function handleDelete() {
     if (!deleting) return
-    const fd = new FormData()
-    fd.set('id', deleting.id)
-    setDeleteError(undefined)
-    setBanner(null)
     const target = deleting
-    startDelete(async () => {
-      const res = await deleteTeamTask({}, fd)
-      if (res.error) {
-        setDeleteError(res.error)
-      } else {
-        setDeleting(null)
-        setBanner({ type: 'success', message: res.success ?? `Deleted “${target.title}”.` })
-      }
+    const fd = new FormData()
+    fd.set('id', target.id)
+    executeDelete(() => deleteTeamTask({}, fd), {
+      success: {
+        title: 'Task deleted successfully.',
+        description: `“${target.title}” has been deleted.`,
+      },
+      error: (error) => ({
+        title: 'Could not delete task.',
+        description: error,
+      }),
     })
   }
 
@@ -149,11 +159,16 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
     if (!pendingMove) return
     const move = pendingMove
     setPendingMove(null)
-    setBanner(null)
-    startStatus(async () => {
-      applyOptimistic({ id: move.task.id, status: move.to })
-      const res = await updateTeamTaskStatus(move.task.id, move.to)
-      if (res.error) setBanner({ type: 'error', message: res.error })
+    executeStatus(() => updateTeamTaskStatus(move.task.id, move.to), {
+      onStart: () => applyOptimistic({ id: move.task.id, status: move.to }),
+      success: {
+        title: 'Task status updated.',
+        description: `“${move.task.title}” moved to ${STATUS_LABEL[move.to]}.`,
+      },
+      error: (error) => ({
+        title: 'Could not move task.',
+        description: error,
+      }),
     })
   }
 
@@ -180,7 +195,6 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
     // Seed with the card data so the modal renders instantly, then hydrate
     // comments + status history in the background.
     setDetail({ task, comments: [], activities: [] })
-    setCommentError(undefined)
     setDetailLoading(true)
     startDetail(async () => {
       const d = await fetchTeamTaskDetail(task.id)
@@ -196,22 +210,18 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
 
   function deleteFromDetail(task: TeamTaskWithDetails) {
     closeDetail()
-    setDeleteError(undefined)
     setDeleting(task)
   }
 
   function handleAddComment(formData: FormData) {
     if (!detailId) return
-    const id = detailId
-    setCommentError(undefined)
-    startComment(async () => {
-      const res = await addTeamTaskComment({}, formData)
-      if (res.error) {
-        setCommentError(res.error)
-        return
-      }
-      const d = await fetchTeamTaskDetail(id)
-      setDetail(d)
+    commentTargetRef.current = detailId
+    executeComment(() => addTeamTaskComment({}, formData), {
+      success: {
+        title: 'Comment posted.',
+        description: 'Your comment was added to the task.',
+      },
+      error: (message) => ({ title: 'Could not post comment.', description: message }),
     })
   }
 
@@ -276,11 +286,6 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
         )}
       </div>
 
-      {banner && (
-        <div className={`alert alert-${banner.type}`} style={{ marginBottom: 16 }}>
-          {banner.message}
-        </div>
-      )}
 
       {/* Board */}
       {optimisticTasks.length === 0 ? (
@@ -388,7 +393,6 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
         isOpen={showCreate}
         onClose={() => setShowCreate(false)}
         action={handleCreate}
-        error={createError}
         pending={createPending}
         members={members}
         isProjectManager={isProjectManager}
@@ -400,7 +404,6 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
         isOpen={!!editing}
         onClose={() => setEditing(null)}
         action={handleUpdate}
-        error={editError}
         pending={editPending}
         task={editing ?? undefined}
         members={members}
@@ -415,7 +418,6 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
         loading={detailLoading || detailPending}
         onAddComment={handleAddComment}
         commentPending={commentPending}
-        commentError={commentError}
         canDelete={isProjectManager}
         onEdit={(task) => {
           closeDetail()
@@ -433,11 +435,6 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
             Delete <strong style={{ color: 'var(--color-text-primary)' }}>{deleting?.title}</strong>?
             This cannot be undone.
           </p>
-          {deleteError && (
-            <div className="alert alert-error" style={{ marginTop: 12 }}>
-              {deleteError}
-            </div>
-          )}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
             <button onClick={() => setDeleting(null)} className="btn btn-ghost">
               Cancel
