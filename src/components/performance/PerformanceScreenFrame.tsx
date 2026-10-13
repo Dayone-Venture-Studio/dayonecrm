@@ -8,13 +8,17 @@ interface Props {
   prevId: string
   nextId: string
   children: ReactNode
+  darkMode?: boolean
 }
 
-export function PerformanceScreenFrame({ name, index, total, prevId, nextId, children }: Props) {
+export function PerformanceScreenFrame({ name, index, total, prevId, nextId, children, darkMode = false }: Props) {
+  const headerBgClass = darkMode ? 'bg-black' : ''
+  const headerTextClass = darkMode ? 'text-white' : 'text-black'
+  
   return (
     <div className="w-full h-full flex flex-col">
-      <header className="flex items-start justify-between gap-6 px-12 pt-10 pb-6 shrink-0">
-        <h1 className="text-[4cqw] leading-none font-medium tracking-tight text-black">
+      <header className={`flex items-start justify-between gap-6 px-12 pt-10 pb-6 shrink-0 ${headerBgClass}`}>
+        <h1 className={`text-[4cqw] leading-none font-medium tracking-tight ${headerTextClass}`}>
           {name}
         </h1>
         <div className="pt-2">
@@ -24,6 +28,7 @@ export function PerformanceScreenFrame({ name, index, total, prevId, nextId, chi
             total={total}
             prevId={prevId}
             nextId={nextId}
+            darkMode={darkMode}
           />
         </div>
       </header>

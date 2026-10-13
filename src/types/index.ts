@@ -46,6 +46,9 @@ export interface Startup {
   logo_url?: string | null
   monthly_revenue?: number | null
   monthly_target?: number | null
+  cash_runaway_months?: number | null
+  monthly_burn_rate?: number | null
+  customer_acquisition_cost?: number | null
   created_at: string
   updated_at: string
 }

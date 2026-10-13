@@ -38,6 +38,14 @@ export interface FoundersOfTheWeekData {
   startupName: string
 }
 
+export interface StartupHealthRow {
+  id: string
+  name: string
+  cashRunaway: number | null
+  burnRate: number | null
+  cac: number | null
+}
+
 const MILESTONE_LIMIT = 3
 
 function sortBareLogicFirst<T extends { name: string }>(rows: T[]): T[] {
@@ -134,6 +142,30 @@ export async function getWeeklyMilestoneRows(): Promise<WeeklyMilestoneRow[]> {
   }))
 
   return sortBareLogicFirst(rows)
+}
+
+/**
+ * Get startup health metrics (cash runaway, burn rate, CAC) for all active startups.
+ * Returns data ordered by startup name.
+ */
+export async function getStartupHealthData(): Promise<StartupHealthRow[]> {
+  const supabase = getAdminClient()
+
+  const { data: startups } = await supabase
+    .from('startups')
+    .select('id, name, cash_runaway_months, monthly_burn_rate, customer_acquisition_cost')
+    .eq('status', 'ACTIVE')
+    .order('name', { ascending: true })
+
+  if (!startups) return []
+
+  return startups.map((startup) => ({
+    id: startup.id,
+    name: startup.name,
+    cashRunaway: startup.cash_runaway_months ?? null,
+    burnRate: startup.monthly_burn_rate ?? null,
+    cac: startup.customer_acquisition_cost ?? null,
+  }))
 }
 
 /**

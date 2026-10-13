@@ -2,11 +2,13 @@ import type { JSX } from 'react'
 import { MonthlyPerformanceScreen } from './screens/MonthlyPerformanceScreen'
 import { WeeklyMilestonesScreen } from './screens/WeeklyMilestonesScreen'
 import { FoundersOfTheWeekScreen } from './screens/FoundersOfTheWeekScreen'
+import { StartupHealthScreen } from './screens/StartupHealthScreen'
 
 export interface PerformanceScreen {
   id: string
   name: string
   Component: () => Promise<JSX.Element>
+  darkMode?: boolean
 }
 
 /**
@@ -29,5 +31,11 @@ export const PERFORMANCE_SCREENS: PerformanceScreen[] = [
     id: 'founders-of-the-week',
     name: 'Founders of the Week',
     Component: FoundersOfTheWeekScreen,
+  },
+  {
+    id: 'startup-health',
+    name: 'Startup Health',
+    Component: StartupHealthScreen,
+    darkMode: true,
   },
 ]
