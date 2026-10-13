@@ -11,6 +11,7 @@ import { useLoading } from './LoadingContext'
  * feedback from user-initiated same-origin links.
  *
  * Excluded Routes:
+ * - /
  * - /login
  * - /register
  * - /unauthorized
@@ -26,7 +27,7 @@ const SHOW_DELAY_MS = 100
 const EXCLUDED_ROUTES = ['/login', '/register', '/unauthorized', '/tv', '/performance']
 
 function isExcludedPath(pathname: string) {
-  return EXCLUDED_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`))
+  return pathname === '/' || EXCLUDED_ROUTES.some(route => pathname === route || pathname.startsWith(`${route}/`))
 }
 
 export function TopLoaderProvider() {
