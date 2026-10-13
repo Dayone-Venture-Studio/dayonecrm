@@ -76,3 +76,27 @@ export function DetailSkeleton() {
     </div>
   )
 }
+
+export function KanbanSkeleton({ columns = 3, cards = 3 }: { columns?: number; cards?: number }) {
+  return (
+    <div className="kanban-board">
+      {Array.from({ length: columns }).map((_, c) => (
+        <div key={c} className="kanban-column">
+          <div className="kanban-column-header">
+            <div style={bar(90, 14)} />
+            <div style={bar(24, 24, 100)} />
+          </div>
+          <div className="kanban-tasks">
+            {Array.from({ length: cards }).map((_, i) => (
+              <div key={i} className="task-card">
+                <div style={bar('70%', 14)} />
+                <div style={{ ...bar('100%', 11), marginTop: 10 }} />
+                <div style={{ ...bar('45%', 11), marginTop: 8 }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}

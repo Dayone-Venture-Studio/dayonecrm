@@ -5,6 +5,7 @@ import { getMembershipForUser } from '@/lib/startups/queries'
 import { DomainsClient } from '@/components/domains/DomainsClient'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { CardsSkeleton } from '@/components/layout/LoadingStates'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Domains' }
@@ -27,7 +28,13 @@ async function DomainsContent() {
 
   const membership = await getMembershipForUser(session!.id, 'FOUNDER')
   const startupId = membership?.startup_id
-  if (!startupId) return <div>Startup not found</div>
+  if (!startupId)
+    return (
+      <>
+        <DataLoadedSignal />
+        <div>Startup not found</div>
+      </>
+    )
 
   const { data: domains } = await supabase
     .from('domains')
@@ -35,5 +42,10 @@ async function DomainsContent() {
     .eq('startup_id', startupId)
     .order('created_at', { ascending: true })
 
-  return <DomainsClient startupId={startupId} domains={domains || []} />
+  return (
+    <>
+      <DataLoadedSignal />
+      <DomainsClient startupId={startupId} domains={domains || []} />
+    </>
+  )
 }

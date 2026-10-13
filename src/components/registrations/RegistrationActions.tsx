@@ -1,8 +1,8 @@
 'use client'
 
-import { useActionState } from 'react'
 import { approveRegistration, rejectRegistration } from '@/features/registrations/actions'
-import type { ActionState, RegistrationRequestWithStartup } from '@/types'
+import { useServerAction } from '@/lib/hooks/useServerAction'
+import type { RegistrationRequestWithStartup } from '@/types'
 import { useState } from 'react'
 
 interface Props {
@@ -10,15 +10,11 @@ interface Props {
 }
 
 export function RegistrationActions({ request }: Props) {
-  const [approveState, approveAction, approvePending] = useActionState<ActionState, FormData>(
-    approveRegistration,
-    {}
-  )
-  const [rejectState, rejectAction, rejectPending] = useActionState<ActionState, FormData>(
-    rejectRegistration,
-    {}
-  )
   const [showRejectForm, setShowRejectForm] = useState(false)
+  const [executeApprove, approvePending] = useServerAction()
+  const [executeReject, rejectPending] = useServerAction({
+    onSuccess: () => setShowRejectForm(false),
+  })
 
   if (request.status !== 'PENDING') {
     return (
@@ -30,17 +26,37 @@ export function RegistrationActions({ request }: Props) {
     )
   }
 
+  const startupName = request.startup?.name ?? 'startup'
+
+  function handleApprove(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    executeApprove(() => approveRegistration({}, formData), {
+      success: {
+        title: 'Registration approved.',
+        description: `“${startupName}” can now log in.`,
+      },
+      error: (message) => ({ title: 'Could not approve registration.', description: message }),
+    })
+  }
+
+  function handleReject(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    executeReject(() => rejectRegistration({}, formData), {
+      success: {
+        title: 'Registration rejected.',
+        description: `“${startupName}” was not approved.`,
+      },
+      error: (message) => ({ title: 'Could not reject registration.', description: message }),
+    })
+  }
+
   return (
     <div>
-      {(approveState?.error || rejectState?.error) && (
-        <div className="alert alert-error" style={{ marginBottom: 12 }}>
-          {approveState?.error || rejectState?.error}
-        </div>
-      )}
-
       {!showRejectForm && (
         <div style={{ display: 'flex', gap: 8 }}>
-          <form action={approveAction}>
+          <form onSubmit={handleApprove}>
             <input type="hidden" name="requestId" value={request.id} />
             <input type="hidden" name="startupId" value={request.startup_id} />
             <button type="submit" disabled={approvePending} className="btn btn-primary btn-sm">
@@ -57,7 +73,7 @@ export function RegistrationActions({ request }: Props) {
       )}
 
       {showRejectForm && (
-        <form action={rejectAction} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <form onSubmit={handleReject} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <input type="hidden" name="requestId" value={request.id} />
           <input type="hidden" name="startupId" value={request.startup_id} />
           <textarea

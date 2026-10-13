@@ -1,6 +1,13 @@
 // ─── Enums ─────────────────────────────────────────────────────────────────
 
-export type Role = 'ADMIN' | 'FOUNDER' | 'STAFF' | 'VENTURE_MANAGER'
+export type Role =
+  | 'ADMIN'
+  | 'FOUNDER'
+  | 'STAFF'
+  | 'VENTURE_MANAGER'
+  | 'EMPLOYEE'
+  | 'PROJECT_MANAGER'
+export type TeamRole = 'EMPLOYEE' | 'PROJECT_MANAGER'
 export type StartupStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'INACTIVE'
 export type MemberRole = 'FOUNDER' | 'STAFF'
 export type RegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -25,6 +32,7 @@ export interface Profile {
   email?: string | null
   phone: string | null
   role: Role
+  department?: string | null
   created_at: string
   updated_at: string
 }
@@ -194,6 +202,71 @@ export interface VentureManagerNoteWithEntity extends VentureManagerNote {
   startup?: Startup | null
   task?: Task | null
   weekly_plan?: WeeklyPlan | null
+}
+
+// ─── Internal Team Tasks ────────────────────────────────────────────────────
+
+export interface TeamTask {
+  id: string
+  title: string
+  description: string | null
+  assigned_to: string | null
+  created_by: string | null
+  status: TaskStatus
+  priority: TaskPriority
+  due_date: string | null
+  department: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface TeamTaskComment {
+  id: string
+  task_id: string
+  user_id: string
+  comment: string
+  created_at: string
+}
+
+export interface TeamTaskActivity {
+  id: string
+  task_id: string
+  user_id: string | null
+  from_status: TaskStatus | null
+  to_status: TaskStatus
+  created_at: string
+}
+
+export type TeamMemberSummary = Pick<Profile, 'id' | 'full_name' | 'email' | 'department'>
+
+/** Team task row with the profiles it is rendered with. */
+export interface TeamTaskWithDetails extends TeamTask {
+  assigned_profile: TeamMemberSummary | null
+  created_by_profile: Pick<Profile, 'id' | 'full_name'> | null
+}
+
+/** A comment joined to the profile of its author. */
+export interface TeamTaskCommentWithProfile extends TeamTaskComment {
+  author: Pick<Profile, 'id' | 'full_name'> | null
+}
+
+/** A status-change activity joined to the profile that made the change. */
+export interface TeamTaskActivityWithProfile extends TeamTaskActivity {
+  actor: Pick<Profile, 'id' | 'full_name'> | null
+}
+
+/** Everything the task detail modal needs, in one payload. */
+export interface TeamTaskDetail {
+  task: TeamTaskWithDetails
+  comments: TeamTaskCommentWithProfile[]
+  activities: TeamTaskActivityWithProfile[]
+}
+
+export interface TeamTaskStats {
+  total: number
+  inProgress: number
+  completed: number
+  overdue: number
 }
 
 // ─── Form / Action State Types ──────────────────────────────────────────────

@@ -4,7 +4,8 @@ import { getSession } from '@/lib/auth/getSession'
 import { getMembershipForUser } from '@/lib/startups/queries'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { TextSkeleton } from '@/components/layout/LoadingStates'
-import { DashboardSkeleton } from '@/components/layout/DashboardSkeleton'
+import { StaffDashboardSkeleton } from '@/components/staff/StaffDashboardSkeleton'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
@@ -104,7 +105,7 @@ export default function StaffDashboard() {
         }
       />
 
-      <Suspense fallback={<DashboardSkeleton />}>
+      <Suspense fallback={<StaffDashboardSkeleton />}>
         <StaffDashboardContent />
       </Suspense>
     </div>
@@ -124,6 +125,7 @@ async function StaffDashboardContent() {
 
   return (
     <>
+      <DataLoadedSignal />
       {/* Stats */}
       <div className="grid-stats" style={{ marginBottom: 32 }}>
         {[

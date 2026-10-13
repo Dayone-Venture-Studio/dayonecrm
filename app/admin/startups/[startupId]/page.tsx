@@ -12,6 +12,7 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { DetailSkeleton } from '@/components/layout/LoadingStates'
 import { StartupDetailClient } from '@/components/admin/StartupDetailClient'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 
 export const metadata: Metadata = { title: 'Startup Detail' }
 
@@ -68,14 +69,17 @@ async function StartupDetailContent({ params }: Props) {
   )
 
   return (
-    <StartupDetailClient
-      startup={startup}
-      founder={founder}
-      staff={staff}
-      currentPlan={currentPlan}
-      currentPlanTasks={currentPlanTasks}
-      domains={domains}
-      activity={activity || []}
-    />
+    <>
+      <DataLoadedSignal />
+      <StartupDetailClient
+        startup={startup}
+        founder={founder}
+        staff={staff}
+        currentPlan={currentPlan}
+        currentPlanTasks={currentPlanTasks}
+        domains={domains}
+        activity={activity || []}
+      />
+    </>
   )
 }

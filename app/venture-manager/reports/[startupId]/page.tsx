@@ -4,6 +4,7 @@ import { getStartupById } from '@/lib/startups/queries'
 import { getStartupReportData, type StartupReportSummary } from '@/lib/reports/queries'
 import { StartupReport } from '@/components/reports/StartupReport'
 import { ReportsSkeleton } from '@/components/reports/ReportsSkeleton'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 
@@ -40,5 +41,10 @@ async function StartupReportContent({ params }: Props) {
 
   const data = await getStartupReportData(startup as StartupReportSummary)
 
-  return <StartupReport data={data} />
+  return (
+    <>
+      <DataLoadedSignal />
+      <StartupReport data={data} />
+    </>
+  )
 }

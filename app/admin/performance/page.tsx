@@ -5,6 +5,7 @@ import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { calculateStartupHealth } from '@/lib/performance/calculateStartupHealth'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { TableSkeleton } from '@/components/layout/LoadingStates'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import type { Metadata } from 'next'
 import type { WeeklyPerformance, Task, Domain } from '@/types'
 import Link from 'next/link'
@@ -134,6 +135,7 @@ async function PerformanceContent() {
 
   return (
     <>
+      <DataLoadedSignal />
       {/* Charts */}
       <PerformanceCharts barData={barData} trendData={trendData} statusData={statusData} />
 

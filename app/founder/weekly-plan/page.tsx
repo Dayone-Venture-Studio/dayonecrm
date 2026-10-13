@@ -5,6 +5,7 @@ import { getMembershipForUser } from '@/lib/startups/queries'
 import { WeeklyPlanClient } from '@/components/weekly-plan/WeeklyPlanClient'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DashboardSkeleton } from '@/components/layout/DashboardSkeleton'
+import { DataLoadedSignal } from '@/components/layout/DataLoadedSignal'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = { title: 'Weekly Plan' }
@@ -35,7 +36,13 @@ async function WeeklyPlanContent({ searchParams: searchParamsPromise }: Props) {
 
   const membership = await getMembershipForUser(session!.id, 'FOUNDER')
   const startupId = membership?.startup_id
-  if (!startupId) return <div>Startup not found</div>
+  if (!startupId)
+    return (
+      <>
+        <DataLoadedSignal />
+        <div>Startup not found</div>
+      </>
+    )
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -77,13 +84,16 @@ async function WeeklyPlanContent({ searchParams: searchParamsPromise }: Props) {
     : []
 
   return (
-    <WeeklyPlanClient
-      startupId={startupId}
-      allPlans={allPlans || []}
-      activePlan={activePlan}
-      domains={domains || []}
-      tasks={tasks || []}
-      staffMembers={(staff as any) || []}
-    />
+    <>
+      <DataLoadedSignal />
+      <WeeklyPlanClient
+        startupId={startupId}
+        allPlans={allPlans || []}
+        activePlan={activePlan}
+        domains={domains || []}
+        tasks={tasks || []}
+        staffMembers={(staff as any) || []}
+      />
+    </>
   )
 }
