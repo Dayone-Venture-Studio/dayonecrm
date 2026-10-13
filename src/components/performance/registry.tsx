@@ -1,6 +1,7 @@
 import type { JSX } from 'react'
 import { MonthlyPerformanceScreen } from './screens/MonthlyPerformanceScreen'
 import { WeeklyMilestonesScreen } from './screens/WeeklyMilestonesScreen'
+import { FoundersOfTheWeekScreen } from './screens/FoundersOfTheWeekScreen'
 
 export interface PerformanceScreen {
   id: string
@@ -23,5 +24,10 @@ export const PERFORMANCE_SCREENS: PerformanceScreen[] = [
     id: 'weekly-milestones',
     name: 'Weekly Milestone Achievement',
     Component: WeeklyMilestonesScreen,
+  },
+  {
+    id: 'founders-of-the-week',
+    name: 'Founders of the Week',
+    Component: FoundersOfTheWeekScreen,
   },
 ]

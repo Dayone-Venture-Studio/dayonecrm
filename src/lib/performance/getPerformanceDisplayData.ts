@@ -25,6 +25,19 @@ export interface WeeklyMilestoneRow {
   milestones: WeeklyMilestoneItem[]
 }
 
+export interface FoundersOfTheWeekData {
+  founder1: {
+    name: string
+    imageUrl: string
+  }
+  founder2: {
+    name: string
+    imageUrl: string
+  }
+  description: string
+  startupName: string
+}
+
 const MILESTONE_LIMIT = 3
 
 function sortBareLogicFirst<T extends { name: string }>(rows: T[]): T[] {
@@ -121,6 +134,39 @@ export async function getWeeklyMilestoneRows(): Promise<WeeklyMilestoneRow[]> {
   }))
 
   return sortBareLogicFirst(rows)
+}
+
+/**
+ * Get the featured founders of the week with their startup description.
+ * Returns the most recently updated startup marked as "founder of the week".
+ */
+export async function getFoundersOfTheWeek(): Promise<FoundersOfTheWeekData | null> {
+  const supabase = getAdminClient()
+
+  // Get the startup marked as "founder of the week"
+  const { data: startup } = await supabase
+    .from('startups')
+    .select('id, name, description, founder_of_week_image_1, founder_of_week_image_2, founder_of_week_name_1, founder_of_week_name_2')
+    .eq('is_founder_of_week', true)
+    .eq('status', 'ACTIVE')
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!startup) return null
+
+  return {
+    founder1: {
+      name: startup.founder_of_week_name_1 || 'Founder 1',
+      imageUrl: startup.founder_of_week_image_1 || '/placeholder-founder.jpg',
+    },
+    founder2: {
+      name: startup.founder_of_week_name_2 || 'Founder 2',
+      imageUrl: startup.founder_of_week_image_2 || '/placeholder-founder.jpg',
+    },
+    description: startup.description || '',
+    startupName: startup.name,
+  }
 }
 
 /**
