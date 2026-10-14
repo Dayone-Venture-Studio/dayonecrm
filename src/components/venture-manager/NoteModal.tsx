@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createNote, updateNote } from '@/features/venture-manager/actions'
 import { ModalOverlay } from '@/components/ui/ModalOverlay'
-import type { NoteEntityType, NoteUrgency, NoteVisibility, VentureManagerNote } from '@/types'
+import type { NoteEntityType, NoteUrgency, VentureManagerNote } from '@/types'
 import { X, Save, AlertCircle } from 'lucide-react'
 
 interface Props {
@@ -27,7 +27,6 @@ export function NoteModal({
 }: Props) {
   const [noteText, setNoteText] = useState('')
   const [urgency, setUrgency] = useState<NoteUrgency>('MEDIUM')
-  const [visibility, setVisibility] = useState<NoteVisibility>('ADMIN_ONLY')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,11 +34,9 @@ export function NoteModal({
     if (existingNote) {
       setNoteText(existingNote.note_text)
       setUrgency(existingNote.urgency)
-      setVisibility(existingNote.visibility)
     } else {
       setNoteText('')
       setUrgency('MEDIUM')
-      setVisibility('ADMIN_ONLY')
     }
     setError(null)
   }, [existingNote, isOpen])
@@ -58,7 +55,6 @@ export function NoteModal({
         formData.append('note_id', existingNote.id)
         formData.append('note_text', noteText)
         formData.append('urgency', urgency)
-        formData.append('visibility', visibility)
         const result = await updateNote({}, formData)
         
         if (result.error) {
@@ -72,7 +68,6 @@ export function NoteModal({
         formData.append('entity_id', entityId)
         formData.append('note_text', noteText)
         formData.append('urgency', urgency)
-        formData.append('visibility', visibility)
         const result = await createNote({}, formData)
         
         if (result.error) {
@@ -87,13 +82,6 @@ export function NoteModal({
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const urgencyColors = {
-    LOW: 'bg-gray-100 text-gray-800 border-gray-300',
-    MEDIUM: 'bg-blue-100 text-blue-800 border-blue-300',
-    HIGH: 'bg-orange-100 text-orange-800 border-orange-300',
-    CRITICAL: 'bg-red-100 text-red-800 border-red-300',
   }
 
   return (
@@ -192,43 +180,6 @@ export function NoteModal({
                   >
                     {level}
                   </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Visibility */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text-primary)' }}>
-              Visibility
-            </label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                { value: 'ADMIN_ONLY', label: 'Admin Only', desc: 'Only visible to admins and venture managers' },
-                { value: 'SHARED_WITH_STARTUP', label: 'Shared with Startup', desc: "Visible to the startup's founders and staff members" }
-              ].map((opt) => {
-                const isSelected = visibility === opt.value
-                return (
-                  <label key={opt.value} style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 16, padding: 16, borderRadius: 10,
-                    border: `2px solid ${isSelected ? 'var(--color-brand)' : 'var(--color-border)'}`,
-                    background: isSelected ? 'rgba(202,47,43,0.02)' : 'var(--color-surface)',
-                    cursor: 'pointer', transition: 'all 0.2s'
-                  }}>
-                    <input
-                      type="radio"
-                      name="visibility"
-                      value={opt.value}
-                      checked={isSelected}
-                      onChange={(e) => setVisibility(e.target.value as NoteVisibility)}
-                      disabled={isSubmitting}
-                      style={{ marginTop: 2, accentColor: 'var(--color-brand)', width: 16, height: 16 }}
-                    />
-                    <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 2 }}>{opt.label}</div>
-                      <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>{opt.desc}</div>
-                    </div>
-                  </label>
                 )
               })}
             </div>

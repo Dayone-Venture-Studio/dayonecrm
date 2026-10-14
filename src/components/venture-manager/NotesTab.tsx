@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation'
 import { NoteModal } from './NoteModal'
 import { NotesList } from './NotesList'
 import { Plus } from 'lucide-react'
-import type { VentureManagerNoteWithProfile } from '@/types'
+import type { VentureManagerNoteWithProfile, VentureManagerNoteWithContext } from '@/types'
 
 interface Props {
-  notes: VentureManagerNoteWithProfile[]
+  notes: VentureManagerNoteWithContext[]
   startupId: string
   startupName: string
 }
@@ -16,7 +16,7 @@ interface Props {
 export function NotesTab({ notes, startupId, startupName }: Props) {
   const router = useRouter()
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false)
-  const [editingNote, setEditingNote] = useState<VentureManagerNoteWithProfile | null>(null)
+  const [editingNote, setEditingNote] = useState<VentureManagerNoteWithContext | null>(null)
 
   const refresh = () => router.refresh()
 
@@ -25,7 +25,7 @@ export function NotesTab({ notes, startupId, startupName }: Props) {
     setIsNoteModalOpen(true)
   }
 
-  const openEdit = (note: VentureManagerNoteWithProfile) => {
+  const openEdit = (note: VentureManagerNoteWithContext) => {
     setEditingNote(note)
     setIsNoteModalOpen(true)
   }
@@ -51,6 +51,7 @@ export function NotesTab({ notes, startupId, startupName }: Props) {
         notes={notes}
         onEdit={openEdit}
         onRefresh={refresh}
+        showEntityInfo={true}
       />
       <NoteModal
         isOpen={isNoteModalOpen}
