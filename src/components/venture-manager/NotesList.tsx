@@ -17,6 +17,7 @@ import {
   Building2,
   CornerDownRight,
 } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type NoteItem = VentureManagerNoteWithProfile & {
   startup_id?: string | null
@@ -66,13 +67,26 @@ export function NotesList({
 }: Props) {
   const [resolvingId, setResolvingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean
+    noteId: string | null
+  }>({ isOpen: false, noteId: null })
+  const [resolveConfirm, setResolveConfirm] = useState<{
+    isOpen: boolean
+    noteId: string | null
+    currentlyResolved: boolean
+  }>({ isOpen: false, noteId: null, currentlyResolved: false })
+  const [reopenConfirm, setReopenConfirm] = useState<{
+    isOpen: boolean
+    noteId: string | null
+  }>({ isOpen: false, noteId: null })
 
-  const handleResolve = async (noteId: string, resolved: boolean) => {
+  const handleResolve = async (noteId: string) => {
     setResolvingId(noteId)
     try {
       const formData = new FormData()
       formData.append('note_id', noteId)
-      formData.append('resolved', String(!resolved))
+      formData.append('resolved', String(!resolveConfirm.currentlyResolved))
       await resolveNote({}, formData)
       onRefresh?.()
     } catch (err) {
@@ -82,8 +96,22 @@ export function NotesList({
     }
   }
 
+  const handleReopenNote = async (noteId: string) => {
+    setResolvingId(noteId)
+    try {
+      const formData = new FormData()
+      formData.append('note_id', noteId)
+      formData.append('resolved', 'false')
+      await resolveNote({}, formData)
+      onRefresh?.()
+    } catch (err) {
+      console.error('Failed to reopen note:', err)
+    } finally {
+      setResolvingId(null)
+    }
+  }
+
   const handleDelete = async (noteId: string) => {
-    if (!window.confirm('Delete this note?')) return
     setDeletingId(noteId)
     try {
       const result = await deleteNote(noteId)
@@ -97,6 +125,45 @@ export function NotesList({
     } finally {
       setDeletingId(null)
     }
+  }
+
+  const openDeleteConfirm = (noteId: string) => {
+    setDeleteConfirm({ isOpen: true, noteId })
+  }
+
+  const closeDeleteConfirm = () => {
+    setDeleteConfirm({ isOpen: false, noteId: null })
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteConfirm.noteId) return
+    await handleDelete(deleteConfirm.noteId)
+  }
+
+  const openResolveConfirm = (noteId: string, currentlyResolved: boolean) => {
+    setResolveConfirm({ isOpen: true, noteId, currentlyResolved })
+  }
+
+  const closeResolveConfirm = () => {
+    setResolveConfirm({ isOpen: false, noteId: null, currentlyResolved: false })
+  }
+
+  const confirmResolve = async () => {
+    if (!resolveConfirm.noteId) return
+    await handleResolve(resolveConfirm.noteId)
+  }
+
+  const openReopenConfirm = (noteId: string) => {
+    setReopenConfirm({ isOpen: true, noteId })
+  }
+
+  const closeReopenConfirm = () => {
+    setReopenConfirm({ isOpen: false, noteId: null })
+  }
+
+  const confirmReopen = async () => {
+    if (!reopenConfirm.noteId) return
+    await handleReopenNote(reopenConfirm.noteId)
   }
 
   const visibilityIcons = {
@@ -182,24 +249,77 @@ export function NotesList({
               {/* Actions */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                 {onEdit && !note.resolved && (
-                  <button onClick={() => onEdit(note)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--color-text-muted)' }} title="Edit note">
+                  <button 
+                    onClick={() => onEdit(note)} 
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      cursor: 'pointer', 
+                      padding: 4, 
+                      color: 'var(--color-text-muted)',
+                      transition: 'color 0.2s',
+                    }} 
+                    title="Edit note"
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.color = 'var(--color-brand)'
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.color = 'var(--color-text-muted)'
+                    }}
+                  >
                     <Edit2 size={16} />
                   </button>
                 )}
                 <button
-                  onClick={() => handleResolve(note.id, note.resolved)}
+                  onClick={() => note.resolved ? openReopenConfirm(note.id) : openResolveConfirm(note.id, note.resolved)}
                   disabled={resolvingId === note.id}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: note.resolved ? 'var(--color-text-muted)' : 'var(--color-success)', opacity: resolvingId === note.id ? 0.5 : 1 }}
+                  style={{ 
+                    background: 'transparent', 
+                    border: 'none', 
+                    cursor: resolvingId === note.id ? 'not-allowed' : 'pointer', 
+                    padding: 4, 
+                    color: note.resolved ? 'var(--color-text-muted)' : 'var(--color-success)', 
+                    opacity: resolvingId === note.id ? 0.5 : 1,
+                    transition: 'opacity 0.2s, color 0.2s',
+                  }}
                   title={note.resolved ? 'Reopen note' : 'Mark as resolved'}
+                  onMouseOver={(e) => {
+                    if (resolvingId !== note.id) {
+                      e.currentTarget.style.opacity = '0.7'
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (resolvingId !== note.id) {
+                      e.currentTarget.style.opacity = '1'
+                    }
+                  }}
                 >
                   {note.resolved ? <Circle size={16} /> : <CheckCircle size={16} />}
                 </button>
                 {!note.resolved && (
                   <button
-                    onClick={() => handleDelete(note.id)}
+                    onClick={() => openDeleteConfirm(note.id)}
                     disabled={deletingId === note.id}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--color-text-muted)', opacity: deletingId === note.id ? 0.5 : 1 }}
+                    style={{ 
+                      background: 'transparent', 
+                      border: 'none', 
+                      cursor: deletingId === note.id ? 'not-allowed' : 'pointer', 
+                      padding: 4, 
+                      color: 'var(--color-text-muted)', 
+                      opacity: deletingId === note.id ? 0.5 : 1,
+                      transition: 'color 0.2s, opacity 0.2s',
+                    }}
                     title="Delete note"
+                    onMouseOver={(e) => {
+                      if (deletingId !== note.id) {
+                        e.currentTarget.style.color = 'var(--color-danger)'
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      if (deletingId !== note.id) {
+                        e.currentTarget.style.color = 'var(--color-text-muted)'
+                      }
+                    }}
                   >
                     <Trash2 size={16} />
                   </button>
@@ -252,6 +372,42 @@ export function NotesList({
           </div>
         )
       })}
+
+      <ConfirmDialog
+        isOpen={deleteConfirm.isOpen}
+        onClose={closeDeleteConfirm}
+        onConfirm={confirmDelete}
+        title="Delete Note"
+        message="Are you sure you want to delete this note? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        icon={<Trash2 size={20} />}
+      />
+
+      <ConfirmDialog
+        isOpen={resolveConfirm.isOpen}
+        onClose={closeResolveConfirm}
+        onConfirm={confirmResolve}
+        title="Mark as Resolved"
+        message="Are you sure you want to mark this note as resolved? You can always reopen it later if needed."
+        confirmText="Mark as Resolved"
+        cancelText="Cancel"
+        variant="success"
+        icon={<CheckCircle size={20} />}
+      />
+
+      <ConfirmDialog
+        isOpen={reopenConfirm.isOpen}
+        onClose={closeReopenConfirm}
+        onConfirm={confirmReopen}
+        title="Reopen Note"
+        message="Are you sure you want to reopen this note? This will move it back to active status."
+        confirmText="Reopen Note"
+        cancelText="Cancel"
+        variant="warning"
+        icon={<Circle size={20} />}
+      />
     </div>
   )
 }
