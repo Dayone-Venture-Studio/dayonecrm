@@ -42,6 +42,7 @@ async function hydrateNotes(
   for (const note of notes) {
     if (note.created_by) ids.add(note.created_by)
     if (note.resolved_by) ids.add(note.resolved_by)
+    if (note.acknowledged_by) ids.add(note.acknowledged_by)
   }
 
   const profileMap = await getProfilesByIds(Array.from(ids))
@@ -50,6 +51,7 @@ async function hydrateNotes(
     ...note,
     creator: profileMap.get(note.created_by) ?? null,
     resolver: note.resolved_by ? profileMap.get(note.resolved_by) ?? null : null,
+    acknowledger: note.acknowledged_by ? profileMap.get(note.acknowledged_by) ?? null : null,
   }))
 }
 
@@ -87,6 +89,135 @@ export async function getNotesCountForEntity(
     .select('id', { count: 'exact', head: true })
     .eq('entity_type', entityType)
     .eq('entity_id', entityId)
+
+  return count ?? 0
+}
+
+/**
+ * Fetches all notes related to a startup, including:
+ * - Notes directly on the startup
+ * - Notes on tasks belonging to the startup
+ * - Notes on weekly plans belonging to the startup
+ */
+export async function getNotesForStartup(
+  startupId: string
+): Promise<VentureManagerNoteWithContext[]> {
+  const supabase = await createClient()
+
+  // Get all task IDs for this startup
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('id')
+    .eq('startup_id', startupId)
+  
+  const taskIds = (tasks || []).map((t: { id: string }) => t.id)
+
+  // Get all weekly plan IDs for this startup
+  const { data: weeklyPlans } = await supabase
+    .from('weekly_plans')
+    .select('id')
+    .eq('startup_id', startupId)
+  
+  const weeklyPlanIds = (weeklyPlans || []).map((w: { id: string }) => w.id)
+
+  // Build query for all related notes
+  const { data } = await supabase
+    .from('venture_manager_notes')
+    .select('*')
+    .or(
+      `and(entity_type.eq.STARTUP,entity_id.eq.${startupId}),` +
+      (taskIds.length > 0 ? `and(entity_type.eq.TASK,entity_id.in.(${taskIds.join(',')})),` : '') +
+      (weeklyPlanIds.length > 0 ? `and(entity_type.eq.WEEKLY_PLAN,entity_id.in.(${weeklyPlanIds.join(',')}))` : '')
+    )
+    .order('created_at', { ascending: false })
+
+  const notes = (data || []) as VentureManagerNote[]
+  const hydratedNotes = await hydrateNotes(notes)
+
+  // Enrich with context (startup name, entity label)
+  if (hydratedNotes.length === 0) return []
+
+  // Get startup name
+  const { data: startup } = await supabase
+    .from('startups')
+    .select('name')
+    .eq('id', startupId)
+    .single()
+
+  const startupName = startup?.name || null
+
+  // Get task titles
+  const taskTitles = new Map<string, string>()
+  if (taskIds.length > 0) {
+    const { data: taskData } = await supabase
+      .from('tasks')
+      .select('id, title')
+      .in('id', taskIds)
+    for (const t of (taskData || []) as { id: string; title: string }[]) {
+      taskTitles.set(t.id, t.title)
+    }
+  }
+
+  // Get weekly plan titles
+  const weeklyPlanTitles = new Map<string, string>()
+  if (weeklyPlanIds.length > 0) {
+    const { data: wpData } = await supabase
+      .from('weekly_plans')
+      .select('id, title, week_start')
+      .in('id', weeklyPlanIds)
+    for (const w of (wpData || []) as { id: string; title: string | null; week_start: string }[]) {
+      weeklyPlanTitles.set(
+        w.id,
+        w.title || `Week of ${new Date(w.week_start).toLocaleDateString()}`
+      )
+    }
+  }
+
+  // Map to context
+  return hydratedNotes.map((note) => ({
+    ...note,
+    startup_id: startupId,
+    startup_name: startupName,
+    entity_label:
+      note.entity_type === 'STARTUP'
+        ? 'Startup note'
+        : note.entity_type === 'TASK'
+        ? taskTitles.get(note.entity_id) || null
+        : weeklyPlanTitles.get(note.entity_id) || null,
+  }))
+}
+
+/**
+ * Fetches the count of all notes related to a startup (including task and weekly plan notes)
+ */
+export async function getNotesCountForStartup(startupId: string): Promise<number> {
+  const supabase = await createClient()
+
+  // Get all task IDs for this startup
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('id')
+    .eq('startup_id', startupId)
+  
+  const taskIds = (tasks || []).map((t: { id: string }) => t.id)
+
+  // Get all weekly plan IDs for this startup
+  const { data: weeklyPlans } = await supabase
+    .from('weekly_plans')
+    .select('id')
+    .eq('startup_id', startupId)
+  
+  const weeklyPlanIds = (weeklyPlans || []).map((w: { id: string }) => w.id)
+
+  // Count all related notes
+  const { count } = await supabase
+    .from('venture_manager_notes')
+    .select('id', { count: 'exact', head: true })
+    .or(
+      `and(entity_type.eq.STARTUP,entity_id.eq.${startupId}),` +
+      (taskIds.length > 0 ? `and(entity_type.eq.TASK,entity_id.in.(${taskIds.join(',')})),` : '') +
+      (weeklyPlanIds.length > 0 ? `and(entity_type.eq.WEEKLY_PLAN,entity_id.in.(${weeklyPlanIds.join(',')}))` : '')
+    )
 
   return count ?? 0
 }
@@ -235,4 +366,133 @@ export async function getAllNotesWithContext(filters?: {
       entity_label: resolved?.entity_label ?? null,
     }
   })
+}
+
+/**
+ * Fetches all VM notes visible to a founder for their startup
+ * Shows all notes (resolved and unresolved) related to the founder's startup
+ */
+export async function getNotesForFounder(
+  startupId: string
+): Promise<VentureManagerNoteWithContext[]> {
+  const supabase = await createClient()
+
+  // Get all task IDs for this startup
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('id')
+    .eq('startup_id', startupId)
+  
+  const taskIds = (tasks || []).map((t: { id: string }) => t.id)
+
+  // Get all weekly plan IDs for this startup
+  const { data: weeklyPlans } = await supabase
+    .from('weekly_plans')
+    .select('id')
+    .eq('startup_id', startupId)
+  
+  const weeklyPlanIds = (weeklyPlans || []).map((w: { id: string }) => w.id)
+
+  // Build query for all related notes
+  const { data } = await supabase
+    .from('venture_manager_notes')
+    .select('*')
+    .or(
+      `and(entity_type.eq.STARTUP,entity_id.eq.${startupId}),` +
+      (taskIds.length > 0 ? `and(entity_type.eq.TASK,entity_id.in.(${taskIds.join(',')})),` : '') +
+      (weeklyPlanIds.length > 0 ? `and(entity_type.eq.WEEKLY_PLAN,entity_id.in.(${weeklyPlanIds.join(',')}))` : '')
+    )
+    .order('acknowledged', { ascending: true }) // Unacknowledged first
+    .order('created_at', { ascending: false })
+
+  const notes = (data || []) as VentureManagerNote[]
+  const hydratedNotes = await hydrateNotes(notes)
+
+  // Enrich with context
+  if (hydratedNotes.length === 0) return []
+
+  // Get startup name
+  const { data: startup } = await supabase
+    .from('startups')
+    .select('name')
+    .eq('id', startupId)
+    .single()
+
+  const startupName = startup?.name || null
+
+  // Get task titles
+  const taskTitles = new Map<string, string>()
+  if (taskIds.length > 0) {
+    const { data: taskData } = await supabase
+      .from('tasks')
+      .select('id, title')
+      .in('id', taskIds)
+    for (const t of (taskData || []) as { id: string; title: string }[]) {
+      taskTitles.set(t.id, t.title)
+    }
+  }
+
+  // Get weekly plan titles
+  const weeklyPlanTitles = new Map<string, string>()
+  if (weeklyPlanIds.length > 0) {
+    const { data: wpData } = await supabase
+      .from('weekly_plans')
+      .select('id, title, week_start')
+      .in('id', weeklyPlanIds)
+    for (const w of (wpData || []) as { id: string; title: string | null; week_start: string }[]) {
+      weeklyPlanTitles.set(
+        w.id,
+        w.title || `Week of ${new Date(w.week_start).toLocaleDateString()}`
+      )
+    }
+  }
+
+  // Map to context
+  return hydratedNotes.map((note) => ({
+    ...note,
+    startup_id: startupId,
+    startup_name: startupName,
+    entity_label:
+      note.entity_type === 'STARTUP'
+        ? 'Startup note'
+        : note.entity_type === 'TASK'
+        ? taskTitles.get(note.entity_id) || null
+        : weeklyPlanTitles.get(note.entity_id) || null,
+  }))
+}
+
+/**
+ * Get count of unacknowledged notes for a founder's startup
+ */
+export async function getUnacknowledgedNotesCountForFounder(startupId: string): Promise<number> {
+  const supabase = await createClient()
+
+  // Get all task IDs for this startup
+  const { data: tasks } = await supabase
+    .from('tasks')
+    .select('id')
+    .eq('startup_id', startupId)
+  
+  const taskIds = (tasks || []).map((t: { id: string }) => t.id)
+
+  // Get all weekly plan IDs for this startup
+  const { data: weeklyPlans } = await supabase
+    .from('weekly_plans')
+    .select('id')
+    .eq('startup_id', startupId)
+  
+  const weeklyPlanIds = (weeklyPlans || []).map((w: { id: string }) => w.id)
+
+  // Count unacknowledged notes
+  const { count } = await supabase
+    .from('venture_manager_notes')
+    .select('id', { count: 'exact', head: true })
+    .eq('acknowledged', false)
+    .or(
+      `and(entity_type.eq.STARTUP,entity_id.eq.${startupId}),` +
+      (taskIds.length > 0 ? `and(entity_type.eq.TASK,entity_id.in.(${taskIds.join(',')})),` : '') +
+      (weeklyPlanIds.length > 0 ? `and(entity_type.eq.WEEKLY_PLAN,entity_id.in.(${weeklyPlanIds.join(',')}))` : '')
+    )
+
+  return count ?? 0
 }

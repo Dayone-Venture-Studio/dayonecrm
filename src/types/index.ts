@@ -162,6 +162,9 @@ export interface VentureManagerNote {
   resolved: boolean
   resolved_by: string | null
   resolved_at: string | null
+  acknowledged: boolean
+  acknowledged_by: string | null
+  acknowledged_at: string | null
   created_at: string
   updated_at: string
 }
@@ -195,6 +198,7 @@ export interface StartupMemberWithProfile extends StartupMember {
 export interface VentureManagerNoteWithProfile extends VentureManagerNote {
   creator: Profile | null
   resolver: Profile | null
+  acknowledger: Profile | null
 }
 
 export interface VentureManagerNoteWithEntity extends VentureManagerNote {

@@ -32,6 +32,7 @@ export const founderNav: NavItem[] = [
   { href: '/founder/tasks', label: 'Tasks', icon: '📋' },
   { href: '/founder/staff', label: 'Staff', icon: '👥' },
   { href: '/founder/domains', label: 'Domains', icon: '🗂️' },
+  { href: '/founder/vm-notes', label: 'VM Notes', icon: '💬' },
 ]
 
 export const staffNav: NavItem[] = [

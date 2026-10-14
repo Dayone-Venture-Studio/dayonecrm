@@ -10,7 +10,7 @@ import {
   getProfileNameMap,
 } from '@/lib/startups/queries'
 import { getStartupTrendData } from '@/lib/venture-manager/portfolioAnalytics'
-import { getNotesForEntity, getNotesCountForEntity } from '@/lib/venture-manager/queries'
+import { getNotesForEntity, getNotesCountForEntity, getNotesForStartup, getNotesCountForStartup } from '@/lib/venture-manager/queries'
 import { calculateStartupHealth } from '@/lib/performance/calculateStartupHealth'
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
 import { StartupDetailClient } from '@/components/venture-manager/StartupDetailClient'
@@ -60,7 +60,7 @@ interface TabSectionProps {
 
 async function TabSection({ tab, startupId, startupName }: TabSectionProps) {
   if (tab === 'notes') {
-    const notes = await getNotesForEntity('STARTUP', startupId)
+    const notes = await getNotesForStartup(startupId)
     return <NotesTab notes={notes} startupId={startupId} startupName={startupName} />
   }
 
@@ -105,7 +105,7 @@ async function StartupDetailContent({ params, searchParams }: Props) {
     getMembersForStartup(startupId, { profileColumns: 'id, full_name, email, role' }),
     getWeeklyPlansForStartup(startupId, { orderBy: 'week_start', ascending: false, limit: 1 }),
     getProfileNameMap(),
-    getNotesCountForEntity('STARTUP', startupId),
+    getNotesCountForStartup(startupId),
   ])
 
   if (!startup) {

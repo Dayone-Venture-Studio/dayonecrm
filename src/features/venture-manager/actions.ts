@@ -306,3 +306,244 @@ export async function deleteNote(noteId: string): Promise<ActionState> {
     return { error: 'An unexpected error occurred' }
   }
 }
+
+
+/**
+ * Acknowledges a venture manager note (founder only)
+ */
+export async function acknowledgeNote(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: 'Not authenticated' }
+    }
+
+    // Verify user is a founder
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'FOUNDER') {
+      return { error: 'Unauthorized: Founder role required' }
+    }
+
+    const noteId = formData.get('note_id') as string
+
+    if (!noteId) {
+      return { error: 'Note ID is required' }
+    }
+
+    // Get the note to verify it belongs to founder's startup
+    const { data: note, error: fetchError } = await supabase
+      .from('venture_manager_notes')
+      .select('id, entity_type, entity_id, acknowledged')
+      .eq('id', noteId)
+      .single()
+
+    if (fetchError || !note) {
+      return { error: 'Note not found' }
+    }
+
+    if (note.acknowledged) {
+      return { error: 'Note has already been acknowledged' }
+    }
+
+    // Verify the note belongs to founder's startup
+    let startupId: string | null = null
+
+    if (note.entity_type === 'STARTUP') {
+      startupId = note.entity_id
+    } else if (note.entity_type === 'TASK') {
+      const { data: task } = await supabase
+        .from('tasks')
+        .select('startup_id')
+        .eq('id', note.entity_id)
+        .single()
+      startupId = task?.startup_id || null
+    } else if (note.entity_type === 'WEEKLY_PLAN') {
+      const { data: plan } = await supabase
+        .from('weekly_plans')
+        .select('startup_id')
+        .eq('id', note.entity_id)
+        .single()
+      startupId = plan?.startup_id || null
+    }
+
+    if (!startupId) {
+      return { error: 'Could not determine startup for this note' }
+    }
+
+    // Verify user is a founder of this startup
+    const { data: membership } = await supabase
+      .from('startup_members')
+      .select('id')
+      .eq('startup_id', startupId)
+      .eq('user_id', user.id)
+      .eq('role', 'FOUNDER')
+      .single()
+
+    if (!membership) {
+      return { error: 'Unauthorized: You are not a founder of this startup' }
+    }
+
+    // Acknowledge the note
+    const { data: updatedNote, error: updateError } = await supabase
+      .from('venture_manager_notes')
+      .update({
+        acknowledged: true,
+        acknowledged_by: user.id,
+        acknowledged_at: new Date().toISOString(),
+      })
+      .eq('id', noteId)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error acknowledging note:', updateError)
+      return { error: 'Failed to acknowledge note' }
+    }
+
+    await logActivity({
+      startupId,
+      action: 'Acknowledged venture manager note',
+      entityType: 'VENTURE_MANAGER_NOTE',
+      entityId: noteId,
+    })
+
+    revalidatePath('/founder')
+    revalidatePath('/venture-manager')
+    revalidatePath('/admin')
+
+    return { success: 'Note acknowledged successfully', data: updatedNote }
+  } catch (err) {
+    console.error('Unexpected error acknowledging note:', err)
+    return { error: 'An unexpected error occurred' }
+  }
+}
+
+/**
+ * Un-acknowledges a venture manager note (founder only)
+ */
+export async function unacknowledgeNote(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return { error: 'Not authenticated' }
+    }
+
+    // Verify user is a founder
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'FOUNDER') {
+      return { error: 'Unauthorized: Founder role required' }
+    }
+
+    const noteId = formData.get('note_id') as string
+
+    if (!noteId) {
+      return { error: 'Note ID is required' }
+    }
+
+    // Get the note to verify it belongs to founder's startup
+    const { data: note, error: fetchError } = await supabase
+      .from('venture_manager_notes')
+      .select('id, entity_type, entity_id, acknowledged')
+      .eq('id', noteId)
+      .single()
+
+    if (fetchError || !note) {
+      return { error: 'Note not found' }
+    }
+
+    if (!note.acknowledged) {
+      return { error: 'Note is not acknowledged' }
+    }
+
+    // Verify the note belongs to founder's startup
+    let startupId: string | null = null
+
+    if (note.entity_type === 'STARTUP') {
+      startupId = note.entity_id
+    } else if (note.entity_type === 'TASK') {
+      const { data: task } = await supabase
+        .from('tasks')
+        .select('startup_id')
+        .eq('id', note.entity_id)
+        .single()
+      startupId = task?.startup_id || null
+    } else if (note.entity_type === 'WEEKLY_PLAN') {
+      const { data: plan } = await supabase
+        .from('weekly_plans')
+        .select('startup_id')
+        .eq('id', note.entity_id)
+        .single()
+      startupId = plan?.startup_id || null
+    }
+
+    if (!startupId) {
+      return { error: 'Could not determine startup for this note' }
+    }
+
+    // Verify user is a founder of this startup
+    const { data: membership } = await supabase
+      .from('startup_members')
+      .select('id')
+      .eq('startup_id', startupId)
+      .eq('user_id', user.id)
+      .eq('role', 'FOUNDER')
+      .single()
+
+    if (!membership) {
+      return { error: 'Unauthorized: You are not a founder of this startup' }
+    }
+
+    // Un-acknowledge the note
+    const { data: updatedNote, error: updateError } = await supabase
+      .from('venture_manager_notes')
+      .update({
+        acknowledged: false,
+        acknowledged_by: null,
+        acknowledged_at: null,
+      })
+      .eq('id', noteId)
+      .select()
+      .single()
+
+    if (updateError) {
+      console.error('Error un-acknowledging note:', updateError)
+      return { error: 'Failed to un-acknowledge note' }
+    }
+
+    await logActivity({
+      startupId,
+      action: 'Un-acknowledged venture manager note',
+      entityType: 'VENTURE_MANAGER_NOTE',
+      entityId: noteId,
+    })
+
+    revalidatePath('/founder')
+    revalidatePath('/venture-manager')
+    revalidatePath('/admin')
+
+    return { success: 'Note un-acknowledged successfully', data: updatedNote }
+  } catch (err) {
+    console.error('Unexpected error un-acknowledging note:', err)
+    return { error: 'An unexpected error occurred' }
+  }
+}

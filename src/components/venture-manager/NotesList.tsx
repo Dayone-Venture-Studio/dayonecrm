@@ -9,8 +9,6 @@ import {
   Circle,
   Edit2,
   Flag,
-  Eye,
-  EyeOff,
   Clock,
   User,
   Trash2,
@@ -164,11 +162,6 @@ export function NotesList({
   const confirmReopen = async () => {
     if (!reopenConfirm.noteId) return
     await handleReopenNote(reopenConfirm.noteId)
-  }
-
-  const visibilityIcons = {
-    ADMIN_ONLY: <EyeOff size={11} />,
-    SHARED_WITH_STARTUP: <Eye size={11} />,
   }
 
   if (notes.length === 0) {
@@ -339,10 +332,12 @@ export function NotesList({
                   {note.urgency}
                 </span>
 
-                <span style={{ ...BADGE_BASE, color: 'var(--color-text-muted)', background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}>
-                  {visibilityIcons[note.visibility]}
-                  {note.visibility === 'ADMIN_ONLY' ? 'Admin only' : 'Shared'}
-                </span>
+                {note.acknowledged && (
+                  <span style={{ ...BADGE_BASE, color: 'var(--color-success)', background: 'var(--color-success-dim)', border: '1px solid rgba(5,150,105,0.25)' }}>
+                    <CheckCircle size={11} />
+                    Acknowledged
+                  </span>
+                )}
 
                 {note.resolved && (
                   <span style={{ ...BADGE_BASE, color: 'var(--color-success)', background: 'var(--color-success-dim)', border: '1px solid rgba(5,150,105,0.25)' }}>
@@ -361,6 +356,12 @@ export function NotesList({
                   <Clock size={14} />
                   {new Date(note.created_at).toLocaleDateString()}
                 </div>
+                {note.acknowledged && note.acknowledged_at && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-success)' }}>
+                    <CheckCircle size={14} />
+                    Acknowledged by {note.acknowledger?.full_name || 'Founder'} • {new Date(note.acknowledged_at).toLocaleDateString()}
+                  </div>
+                )}
                 {note.resolved && note.resolved_at && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--color-success)' }}>
                     <CheckCircle size={14} />
