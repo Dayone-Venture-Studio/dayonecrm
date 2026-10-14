@@ -9,22 +9,28 @@ interface Props {
   total: number
   prevId: string
   nextId: string
+  darkMode?: boolean
 }
 
-export function PerformanceScreenNav({ currentName, index, total, prevId, nextId }: Props) {
+export function PerformanceScreenNav({ currentName, index, total, prevId, nextId, darkMode = false }: Props) {
   const router = useRouter()
   const go = (id: string) => router.push(`/performance/${id}`)
 
-  const buttonClass =
-    'w-11 h-11 rounded-full border border-black/15 bg-white/60 hover:bg-white text-black flex items-center justify-center transition-colors shadow-sm disabled:opacity-40'
+  const buttonClass = darkMode
+    ? 'w-11 h-11 rounded-full border border-white/15 bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shadow-sm disabled:opacity-40'
+    : 'w-11 h-11 rounded-full border border-black/15 bg-white/60 hover:bg-white text-black flex items-center justify-center transition-colors shadow-sm disabled:opacity-40'
+
+  const textColorClass = darkMode ? 'text-white/40' : 'text-black/40'
+  const textColorClass2 = darkMode ? 'text-white/75' : 'text-black/75'
+  const textColorClass3 = darkMode ? 'text-white/45' : 'text-black/45'
 
   return (
     <div className="flex items-center gap-3">
       <div className="text-right mr-1 hidden sm:block">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-black/40">
+        <div className={`text-[1cqw] uppercase tracking-[0.22em] ${textColorClass}`}>
           Performance View
         </div>
-        <div className="text-sm font-medium text-black/75 max-w-[260px] truncate">
+        <div className={`text-[1cqw] font-medium ${textColorClass2} max-w-[260px] truncate`}>
           {currentName}
         </div>
       </div>
@@ -38,7 +44,7 @@ export function PerformanceScreenNav({ currentName, index, total, prevId, nextId
         <ChevronLeft className="w-5 h-5" />
       </button>
 
-      <span className="text-sm text-black/45 tabular-nums w-12 text-center">
+      <span className={`text-[1cqw] ${textColorClass3} tabular-nums w-12 text-center`}>
         {index + 1} / {total}
       </span>
 

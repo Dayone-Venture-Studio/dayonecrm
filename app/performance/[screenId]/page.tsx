@@ -33,6 +33,7 @@ export default async function PerformanceScreenPage({ params }: Props) {
       total={total}
       prevId={prev.id}
       nextId={next.id}
+      darkMode={screen.darkMode}
     >
       <Component />
     </PerformanceScreenFrame>

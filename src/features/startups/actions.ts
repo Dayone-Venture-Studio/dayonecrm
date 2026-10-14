@@ -183,3 +183,108 @@ export async function updateStartupLogo(
     data: { logoUrl: finalLogoUrl },
   }
 }
+
+export async function deleteStartup(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const startupId = formData.get('startup_id') as string
+
+  if (!startupId) {
+    return { error: 'Startup ID is required' }
+  }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: 'You must be logged in to delete a startup.' }
+  }
+
+  // Check if user is an ADMIN
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'ADMIN') {
+    return { error: 'Only administrators can delete startups.' }
+  }
+
+  const adminClient = getAdminClient()
+
+  // Fetch startup details before deletion
+  const { data: startup, error: fetchErr } = await adminClient
+    .from('startups')
+    .select('id, name, email, status')
+    .eq('id', startupId)
+    .single()
+
+  if (fetchErr || !startup) {
+    return { error: 'Startup not found.' }
+  }
+
+  // Gather deletion statistics before deletion
+  const [
+    { count: membersCount },
+    { count: tasksCount },
+    { count: domainsCount },
+    { count: weeklyPlansCount },
+    { count: activityLogsCount },
+  ] = await Promise.all([
+    adminClient.from('startup_members').select('*', { count: 'exact', head: true }).eq('startup_id', startupId),
+    adminClient.from('tasks').select('*', { count: 'exact', head: true }).eq('startup_id', startupId),
+    adminClient.from('domains').select('*', { count: 'exact', head: true }).eq('startup_id', startupId),
+    adminClient.from('weekly_plans').select('*', { count: 'exact', head: true }).eq('startup_id', startupId),
+    adminClient.from('activity_logs').select('*', { count: 'exact', head: true }).eq('startup_id', startupId),
+  ])
+
+  // Log activity with enhanced metadata BEFORE deletion
+  // Note: We don't pass startupId because the startup will be deleted,
+  // and the activity_logs trigger would try to create a telemetry_event
+  // with a foreign key to the deleted startup
+  await logActivity({
+    action: 'DELETED_STARTUP',
+    entityType: 'startup',
+    entityId: startupId,
+    metadata: {
+      startup_id: startupId,
+      startup_name: startup.name,
+      startup_email: startup.email,
+      startup_status: startup.status,
+      deleted_at: new Date().toISOString(),
+      deletion_statistics: {
+        members_count: membersCount || 0,
+        tasks_count: tasksCount || 0,
+        domains_count: domainsCount || 0,
+        weekly_plans_count: weeklyPlansCount || 0,
+        activity_logs_count: activityLogsCount || 0,
+      },
+    },
+  }).catch((err) => {
+    console.error('Failed to log deletion activity:', err)
+  })
+
+  // Delete the startup (cascade will handle related records)
+  const { error: deleteError } = await adminClient
+    .from('startups')
+    .delete()
+    .eq('id', startupId)
+
+  if (deleteError) {
+    console.error('Database delete error:', deleteError)
+    return { error: 'Failed to delete startup from database.' }
+  }
+
+  // Revalidate relevant pages
+  revalidatePath('/admin')
+  revalidatePath('/admin/startups')
+  revalidatePath('/tv')
+
+  return {
+    success: `Startup "${startup.name}" has been permanently deleted along with all related data.`,
+  }
+}
