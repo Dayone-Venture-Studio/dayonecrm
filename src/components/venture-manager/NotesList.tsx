@@ -19,13 +19,13 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type NoteItem = VentureManagerNoteWithProfile & {
   startup_id?: string | null
-  startup_name?: string | null
+  startup_name?: string | null  
   entity_label?: string | null
 }
 
 interface Props {
   notes: NoteItem[]
-  onEdit?: (note: NoteItem) => void
+  onEdit?: (note: VentureManagerNoteWithProfile) => void
   onRefresh?: () => void
   showEntityInfo?: boolean
 }

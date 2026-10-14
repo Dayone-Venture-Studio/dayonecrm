@@ -16,7 +16,7 @@ interface Props {
 export function NotesTab({ notes, startupId, startupName }: Props) {
   const router = useRouter()
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false)
-  const [editingNote, setEditingNote] = useState<VentureManagerNoteWithContext | null>(null)
+  const [editingNote, setEditingNote] = useState<VentureManagerNoteWithProfile | null>(null)
 
   const refresh = () => router.refresh()
 
@@ -25,7 +25,7 @@ export function NotesTab({ notes, startupId, startupName }: Props) {
     setIsNoteModalOpen(true)
   }
 
-  const openEdit = (note: VentureManagerNoteWithContext) => {
+  const openEdit = (note: VentureManagerNoteWithProfile) => {
     setEditingNote(note)
     setIsNoteModalOpen(true)
   }
