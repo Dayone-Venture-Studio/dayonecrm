@@ -78,7 +78,7 @@ export async function createTeamMember(
 
   if (profileError) {
     await adminClient.auth.admin.deleteUser(memberId)
-    return { error: 'Failed to create team member profile' }
+    return { error: `Failed to create team member profile: ${profileError.message}` }
   }
 
   await logActivity({
