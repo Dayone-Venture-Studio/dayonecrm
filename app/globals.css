@@ -588,7 +588,7 @@ tr:hover td { background: #faf8eb; color: var(--color-text-primary); }
 }
 @media (max-width: 640px) {
   .main-content { 
-    padding: 16px;
+    padding: 0px;
     height: 100dvh;
     overflow-y: auto;
   }
@@ -770,6 +770,30 @@ tr:hover td { background: #faf8eb; color: var(--color-text-primary); }
   padding: 12px 0;
   margin-bottom: 16px;
   margin-top: -12px;
+}
+
+/* ── Daily Feed responsive ── */
+.daily-feed-root {
+  --df-px: 12px;
+  --df-gap: 12px;
+  --df-title: 16px;
+  --df-label: 12px;
+  --df-body: 14px;
+  --df-card-pad: 16px;
+  --df-nav-title: 16px;
+  --df-nav-btn: 44px;
+}
+@media (max-width: 640px) {
+  .daily-feed-root {
+    --df-px: 8px;
+    --df-gap: 8px;
+    --df-title: 14px;
+    --df-label: 11px;
+    --df-body: 13px;
+    --df-card-pad: 12px;
+    --df-nav-title: 14px;
+    --df-nav-btn: 40px;
+  }
 }
 
 /* ── Daily Feed composer modal ── */

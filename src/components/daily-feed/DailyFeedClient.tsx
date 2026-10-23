@@ -87,7 +87,7 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
   }
 
   return (
-    <div style={{ maxWidth: 740, margin: '0 auto', padding: '0 12px 96px' }}>
+    <div className="daily-feed-root" style={{ maxWidth: 740, margin: '0 auto', padding: '0 var(--df-px) 96px' }}>
       {/* Date navigator - sticky below page header */}
       <div className="sticky-date-nav">
         <div
@@ -95,17 +95,18 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 12,
+            gap: 6,
+            padding: '8px 0',
           }}
         >
           <div style={{ textAlign: 'left', flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{formatDateLabel(selectedDate)}</div>
+            <div style={{ fontSize: 'var(--df-nav-title)', fontWeight: 700 }}>{formatDateLabel(selectedDate)}</div>
             {selectedDate === today && (
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>Today</div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, minWidth: 44 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 36, minWidth: 36 }}>
               <button
                 type="button"
                 onClick={() => dateInputRef.current?.showPicker?.()}
@@ -122,7 +123,7 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
                   color: 'var(--color-text-secondary)',
                 }}
               >
-                <Calendar size={20} />
+                <Calendar size={16} />
               </button>
               <input
                 ref={dateInputRef}
@@ -153,9 +154,9 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
               className="btn btn-ghost btn-sm"
               onClick={() => navigate(addDays(selectedDate, -1))}
               aria-label="Previous day"
-              style={{ minHeight: 44, minWidth: 44 }}
+              style={{ minHeight: 36, minWidth: 36 }}
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={16} />
             </button>
             <button
               type="button"
@@ -163,9 +164,9 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
               onClick={() => canGoNext && navigate(addDays(selectedDate, 1))}
               disabled={!canGoNext}
               aria-label="Next day"
-              style={{ minHeight: 44, minWidth: 44, opacity: canGoNext ? 1 : 0.4 }}
+              style={{ minHeight: 36, minWidth: 36, opacity: canGoNext ? 1 : 0.4 }}
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
@@ -181,7 +182,7 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 12,
+            gap: 'var(--df-gap)',
             padding: 24,
             textAlign: 'center',
           }}
@@ -214,8 +215,8 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 12,
-                    padding: '14px 16px',
+                    gap: 'var(--df-gap)',
+                    padding: '12px var(--df-card-pad)',
                     borderBottom: '1px solid var(--color-border)',
                   }}
                 >
@@ -349,7 +350,7 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
                   </div>
                 </header>
 
-                <div style={{ padding: 16 }}>
+                <div style={{ padding: 'var(--df-card-pad)' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {[
                       { icon: <CheckCircle2 size={14} />, label: 'Yesterday — Key Work Completed', value: c.yesterday },
@@ -362,10 +363,10 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
                       <div key={section.label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                         <span style={{ color: 'var(--color-text-muted)', marginTop: 2, flexShrink: 0 }}>{section.icon}</span>
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 }}>
+                          <div style={{ fontSize: 'var(--df-label)', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 }}>
                             {section.label}
                           </div>
-                          <div style={{ fontSize: 14, color: 'var(--color-text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                          <div style={{ fontSize: 'var(--df-body)', color: 'var(--color-text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
                             {section.value || '—'}
                           </div>
                         </div>
