@@ -9,6 +9,7 @@ import type { ActionState } from '@/types'
 
 const SubmitReportSchema = z.object({
   report_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  login_time: z.string().optional(),
   yesterday: z.string().optional(),
   today: z.string().optional(),
   pending: z.string().optional(),
@@ -26,6 +27,7 @@ export async function submitDailyReport(
 
   const validated = SubmitReportSchema.safeParse({
     report_date: formData.get('report_date'),
+    login_time: formData.get('login_time') || undefined,
     yesterday: formData.get('yesterday') || undefined,
     today: formData.get('today') || undefined,
     pending: formData.get('pending') || undefined,
@@ -36,8 +38,9 @@ export async function submitDailyReport(
 
   if (!validated.success) return { error: validated.error.errors[0].message }
 
-  const { report_date, yesterday, today, pending, blockers, followups, priority } = validated.data
+  const { report_date, login_time, yesterday, today, pending, blockers, followups, priority } = validated.data
   const content = {
+    login_time: login_time || '',
     yesterday: yesterday || '',
     today: today || '',
     pending: pending || '',

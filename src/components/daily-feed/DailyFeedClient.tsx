@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useServerAction } from '@/lib/hooks/useServerAction'
 import { submitDailyReport, deleteDailyReport } from '@/features/team/report-actions'
 import type { DailyReport } from '@/lib/team/report-queries'
 import type { DailyReportSubmission, DailyReportWithProfile } from '@/lib/team/report-queries'
-import { ChevronLeft, ChevronRight, Plus, CheckCircle2, ListTodo, Clock, AlertTriangle, CalendarDays, Target, Inbox, MoreHorizontal, Edit2, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, CheckCircle2, ListTodo, Clock, AlertTriangle, CalendarDays, Target, Inbox, MoreHorizontal, Edit2, Trash2, Calendar } from 'lucide-react'
 import { ModalOverlay, ModalCloseButton } from '@/components/ui/ModalOverlay'
 
 interface Props {
@@ -39,10 +39,20 @@ function tasksToText(tasks: { title: string }[]): string {
   return tasks.map((t) => `- ${t.title}`).join('\n')
 }
 
+function formatTime12(time: string | undefined): string {
+  if (!time) return ''
+  const [h, m] = time.split(':')
+  if (h === undefined || m === undefined) return time
+  const d = new Date()
+  d.setHours(Number(h), Number(m), 0, 0)
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+}
+
 export function DailyFeedClient({ report, reports, existing, selectedDate, currentUserId }: Props) {
   const router = useRouter()
   const [composerOpen, setComposerOpen] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const dateInputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
 
   const today = toLocalISO(new Date())
@@ -77,7 +87,7 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
   }
 
   return (
-    <div style={{ maxWidth: 740, margin: '0 auto', padding: '0 12px 96px' }}>
+    <div className="daily-feed-root" style={{ maxWidth: 740, margin: '0 auto', padding: '0 var(--df-px) 96px' }}>
       {/* Date navigator - sticky below page header */}
       <div className="sticky-date-nav">
         <div
@@ -85,24 +95,68 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 12,
+            gap: 6,
+            padding: '8px 0',
           }}
         >
           <div style={{ textAlign: 'left', flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{formatDateLabel(selectedDate)}</div>
+            <div style={{ fontSize: 'var(--df-nav-title)', fontWeight: 700 }}>{formatDateLabel(selectedDate)}</div>
             {selectedDate === today && (
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>Today</div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 36, minWidth: 36 }}>
+              <button
+                type="button"
+                onClick={() => dateInputRef.current?.showPicker?.()}
+                aria-label="Pick date"
+                style={{
+                  minHeight: 44,
+                  minWidth: 44,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                <Calendar size={16} />
+              </button>
+              <input
+                ref={dateInputRef}
+                type="date"
+                name="calendar_date"
+                id="calendar_date"
+                defaultValue={selectedDate}
+                max={today}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (val && val <= today) {
+                    navigate(val)
+                  }
+                }}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  opacity: 0,
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
             <button
               type="button"
               className="btn btn-ghost btn-sm"
               onClick={() => navigate(addDays(selectedDate, -1))}
               aria-label="Previous day"
-              style={{ minHeight: 44, minWidth: 44 }}
+              style={{ minHeight: 36, minWidth: 36 }}
             >
-              <ChevronLeft size={20} />
+              <ChevronLeft size={16} />
             </button>
             <button
               type="button"
@@ -110,9 +164,9 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
               onClick={() => canGoNext && navigate(addDays(selectedDate, 1))}
               disabled={!canGoNext}
               aria-label="Next day"
-              style={{ minHeight: 44, minWidth: 44, opacity: canGoNext ? 1 : 0.4 }}
+              style={{ minHeight: 36, minWidth: 36, opacity: canGoNext ? 1 : 0.4 }}
             >
-              <ChevronRight size={20} />
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
@@ -128,7 +182,7 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: 12,
+            gap: 'var(--df-gap)',
             padding: 24,
             textAlign: 'center',
           }}
@@ -161,8 +215,8 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 12,
-                    padding: '14px 16px',
+                    gap: 'var(--df-gap)',
+                    padding: '12px var(--df-card-pad)',
                     borderBottom: '1px solid var(--color-border)',
                   }}
                 >
@@ -192,15 +246,19 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        fontSize: 15,
-                        color: 'var(--color-text-primary, #000000)',
-                        textAlign: 'right',
-                      }}
-                    >
-                      {new Date(r.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div style={{ textAlign: 'right' }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: 15,
+                          color: 'var(--color-text-primary, #000000)',
+                        }}
+                      >
+                        {formatTime12((r.content as Record<string, string>)?.login_time) || new Date(r.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                        Posted {new Date(r.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </div>
                     </div>
                     {r.user_id === currentUserId && (
                       <div style={{ position: 'relative' }}>
@@ -292,7 +350,7 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
                   </div>
                 </header>
 
-                <div style={{ padding: 16 }}>
+                <div style={{ padding: 'var(--df-card-pad)' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {[
                       { icon: <CheckCircle2 size={14} />, label: 'Yesterday — Key Work Completed', value: c.yesterday },
@@ -305,10 +363,10 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
                       <div key={section.label} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                         <span style={{ color: 'var(--color-text-muted)', marginTop: 2, flexShrink: 0 }}>{section.icon}</span>
                         <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 }}>
+                          <div style={{ fontSize: 'var(--df-label)', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 2 }}>
                             {section.label}
                           </div>
-                          <div style={{ fontSize: 14, color: 'var(--color-text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                          <div style={{ fontSize: 'var(--df-body)', color: 'var(--color-text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
                             {section.value || '—'}
                           </div>
                         </div>
@@ -329,6 +387,8 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
           style={{ position: 'fixed', inset: 0, zIndex: 15 }}
         />
       )}
+
+
 
       {/* Floating Add button (today only) - rendered outside scrollable container */}
       {selectedDate === today && (
@@ -357,6 +417,17 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
             <div style={{ overflowY: 'auto', flex: 1, minHeight: 0, scrollbarWidth: 'none' }} className="daily-feed-composer-body">
               <form action={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <input type="hidden" name="report_date" value={selectedDate} />
+
+              <div className="form-group">
+                <label className="label">Login Time</label>
+                <input
+                  type="time"
+                  name="login_time"
+                  className="input"
+                  defaultValue={(existing?.content as Record<string, string>)?.login_time || new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  style={{ width: '100%', minHeight: 44 }}
+                />
+              </div>
 
               {[
                 ['yesterday', 'Yesterday — Key Work Completed', tasksToText(report.yesterdayCompleted), 3],
