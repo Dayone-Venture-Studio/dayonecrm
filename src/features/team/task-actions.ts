@@ -83,6 +83,7 @@ export async function createTeamTask(
   })
 
   revalidatePath('/daily-sprint')
+  revalidatePath('/daily-report')
   return { success: 'Task created.', data: { taskId: task.id } }
 }
 
@@ -91,8 +92,11 @@ export async function updateTeamTask(
   prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const idFromForm = formData.get('id')
+  if (!idFromForm) return { error: 'Missing task ID' }
+
   const validated = UpdateTeamTaskSchema.safeParse({
-    id: formData.get('id'),
+    id: idFromForm,
     title: formData.get('title'),
     description: formData.get('description') || undefined,
     priority: formData.get('priority'),
@@ -132,6 +136,7 @@ export async function updateTeamTask(
   })
 
   revalidatePath('/daily-sprint')
+  revalidatePath('/daily-report')
   return { success: 'Task updated.' }
 }
 

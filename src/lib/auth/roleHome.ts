@@ -7,7 +7,7 @@ export const ROLE_HOME: Record<Role, string> = {
   STAFF: '/staff',
   VENTURE_MANAGER: '/venture-manager',
   PROJECT_MANAGER: '/daily-sprint',
-  EMPLOYEE: '/daily-sprint',
+  EMPLOYEE: '/daily-feed',
 }
 
 export function getRoleHome(role: Role): string {

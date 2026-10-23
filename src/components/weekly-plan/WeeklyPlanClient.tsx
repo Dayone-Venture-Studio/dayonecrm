@@ -2,13 +2,18 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createWeeklyPlan, updateWeeklyPlan, deleteWeeklyPlan } from '@/features/weekly-plans/actions'
+import Link from 'next/link'
+import { createWeeklyPlan, deleteWeeklyPlan } from '@/features/weekly-plans/actions'
 import type { WeeklyPlan, Domain, Task } from '@/types'
-import { createTask, updateTaskStatus } from '@/features/tasks/actions'
 import { useServerAction } from '@/lib/hooks/useServerAction'
-import { DomainSelectWithQuickAdd } from '@/components/domains/DomainSelectWithQuickAdd'
-import { TaskEditModal, type StaffMemberOption } from '@/components/tasks/TaskEditModal'
+import { TaskEditModal } from '@/components/tasks/TaskEditModal'
+import { TaskCreateModal } from '@/components/tasks/TaskCreateModal'
+import { TaskDetailModal } from '@/components/tasks/TaskDetailModal'
 import { ModalOverlay } from '@/components/ui/ModalOverlay'
+import { SprintDashboard } from './SprintDashboard'
+import { StatusSummaryView } from './StatusSummaryView'
+import { TeamWorkloadView } from './TeamWorkloadView'
+import { ExternalLink } from 'lucide-react'
 
 interface StaffMemberEntry {
   user_id: string
@@ -24,6 +29,8 @@ interface Props {
   tasks: Task[]
   staffMembers?: StaffMemberEntry[]
 }
+
+type ViewMode = 'status' | 'team'
 
 function getMonday(date: Date): Date {
   const d = new Date(date)
@@ -50,20 +57,20 @@ export function WeeklyPlanClient({
 }: Props) {
   const router = useRouter()
 
+  // Server actions
   const [createPlan, createPlanPending] = useServerAction({
     onSuccess: () => setShowCreatePlanModal(false),
   })
-  const [updatePlan, updatePlanPending] = useServerAction({
-    onSuccess: () => setEditingPlan(false),
-  })
   const [deletePlan, deletePlanPending] = useServerAction()
-  const [createTaskAction, createTaskPending] = useServerAction()
-  const [updateStatusAction, updateStatusPending] = useServerAction()
 
+  // Modal states
   const [showCreatePlanModal, setShowCreatePlanModal] = useState(false)
   const [showCreateTask, setShowCreateTask] = useState(false)
-  const [editingPlan, setEditingPlan] = useState(false)
+  const [viewingTask, setViewingTask] = useState<Task | null>(null)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+
+  // View mode
+  const [viewMode, setViewMode] = useState<ViewMode>('status')
 
   // Default dates for new plan modal
   const defaultMonday = getMonday(new Date())
@@ -75,70 +82,43 @@ export function WeeklyPlanClient({
 
   const todayStr = toDateStr(new Date())
 
-  function handleCreatePlan(e: React.FormEvent<HTMLFormElement>) {
+  // Get sprint status badge
+  const getPlanStatusBadge = (plan: WeeklyPlan) => {
+    if (todayStr >= plan.week_start && todayStr <= plan.week_end) {
+      return <span className="badge badge-success" style={{ fontSize: 10 }}>Current</span>
+    }
+    if (todayStr < plan.week_start) {
+      return <span className="badge badge-info" style={{ fontSize: 10 }}>Upcoming</span>
+    }
+    return <span className="badge badge-neutral" style={{ fontSize: 10 }}>Past</span>
+  }
+
+  const handleCreatePlan = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
-    const title = String(formData.get('title') || 'Weekly plan')
+    const title = String(formData.get('title') || 'Sprint')
     createPlan(() => createWeeklyPlan({}, formData), {
       success: {
-        title: 'Weekly plan created successfully.',
-        description: `“${title}” is ready to plan tasks.`,
+        title: 'Sprint created successfully.',
+        description: `"${title}" is ready for planning.`,
       },
-      error: (message) => ({ title: 'Could not create weekly plan.', description: message }),
+      error: (message: string) => ({ title: 'Could not create sprint.', description: message }),
     })
   }
 
-  function handleUpdatePlan(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    updatePlan(() => updateWeeklyPlan({}, formData), {
-      success: {
-        title: 'Weekly plan updated successfully.',
-        description: `Changes to “${activePlan?.title || 'weekly plan'}” have been saved.`,
-      },
-      error: (message) => ({ title: 'Could not update weekly plan.', description: message }),
-    })
-  }
-
-  function handleDeletePlan(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (!confirm('Are you sure you want to delete this weekly plan? Tasks will remain unlinked.')) {
+  const handleDeletePlan = () => {
+    if (!activePlan) return
+    if (!confirm('Are you sure you want to delete this sprint? Tasks will remain unlinked.')) {
       return
     }
-    const formData = new FormData(e.currentTarget)
+    const formData = new FormData()
+    formData.append('id', activePlan.id)
     deletePlan(() => deleteWeeklyPlan({}, formData), {
       success: {
-        title: 'Weekly plan deleted successfully.',
-        description: `“${activePlan?.title || 'Weekly plan'}” has been deleted.`,
+        title: 'Sprint deleted successfully.',
+        description: `"${activePlan.title || 'Sprint'}" has been deleted.`,
       },
-      error: (message) => ({ title: 'Could not delete weekly plan.', description: message }),
-    })
-  }
-
-  function handleCreateTask(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const title = String(formData.get('title') || 'Task')
-    createTaskAction(() => createTask({}, formData), {
-      success: {
-        title: 'Task created successfully.',
-        description: `“${title}” has been added to the plan.`,
-      },
-      error: (message) => ({ title: 'Could not create task.', description: message }),
-    })
-  }
-
-  function handleUpdateStatus(e: React.FormEvent<HTMLFormElement>, task: Task) {
-    e.preventDefault()
-    const formData = new FormData(e.currentTarget)
-    const nextStatus = String(formData.get('status') || '')
-    const statusLabel = nextStatus === 'DONE' ? 'Done' : nextStatus === 'IN_PROGRESS' ? 'In Progress' : nextStatus
-    updateStatusAction(() => updateTaskStatus({}, formData), {
-      success: {
-        title: 'Task status updated.',
-        description: `“${task.title}” moved to ${statusLabel}.`,
-      },
-      error: (message) => ({ title: 'Could not update task status.', description: message }),
+      error: (message: string) => ({ title: 'Could not delete sprint.', description: message }),
     })
   }
 
@@ -165,34 +145,6 @@ export function WeeklyPlanClient({
     }
   }
 
-  const statusColors: Record<string, string> = {
-    TODO: 'badge-neutral',
-    IN_PROGRESS: 'badge-info',
-    DONE: 'badge-success',
-  }
-
-  const priorityColors: Record<string, string> = {
-    LOW: 'badge-neutral',
-    MEDIUM: 'badge-warning',
-    HIGH: 'badge-danger',
-  }
-
-  const tasksByDomain = domains.map((d) => ({
-    domain: d,
-    tasks: tasks.filter((t) => t.domain_id === d.id),
-  }))
-  const unassignedTasks = tasks.filter((t) => !t.domain_id)
-
-  const getPlanStatusBadge = (plan: WeeklyPlan) => {
-    if (todayStr >= plan.week_start && todayStr <= plan.week_end) {
-      return <span className="badge badge-success" style={{ fontSize: 10 }}>Current</span>
-    }
-    if (todayStr < plan.week_start) {
-      return <span className="badge badge-info" style={{ fontSize: 10 }}>Upcoming</span>
-    }
-    return <span className="badge badge-neutral" style={{ fontSize: 10 }}>Past</span>
-  }
-
   return (
     <div>
       {/* Plan Switcher Bar */}
@@ -204,18 +156,19 @@ export function WeeklyPlanClient({
           gap: 12,
           marginBottom: 24,
           flexWrap: 'wrap',
-          background: 'var(--color-surface, #1e293b)',
-          padding: '12px 16px',
+          background: 'var(--color-surface)',
+          padding: '14px 18px',
           borderRadius: 10,
           border: '1px solid var(--color-border)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1 }}>
           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Plans:
+            Sprints:
           </span>
           {allPlans.length === 0 ? (
-            <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>No plans created yet</span>
+            <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>No sprints created yet</span>
           ) : (
             allPlans.map((plan) => {
               const isSelected = activePlan?.id === plan.id
@@ -232,22 +185,21 @@ export function WeeklyPlanClient({
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 6,
-                    padding: '6px 12px',
+                    padding: '8px 14px',
                     borderRadius: 8,
-                    fontSize: 12.5,
+                    fontSize: 13,
                     fontWeight: isSelected ? 600 : 500,
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    background: isSelected ? 'var(--color-brand)' : 'transparent',
+                    transition: 'all 0.2s ease',
+                    background: isSelected ? 'var(--color-brand)' : 'var(--color-surface-2)',
                     color: isSelected ? '#ffffff' : 'var(--color-text-primary)',
                     border: isSelected ? '1px solid var(--color-brand)' : '1px solid var(--color-border)',
+                    boxShadow: isSelected ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
                   }}
+                  title={plan.goal || undefined}
                 >
                   <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {displayName}
-                  </span>
-                  <span style={{ opacity: isSelected ? 0.9 : 0.7, fontSize: 11 }}>
-                    ({startStr} - {endStr})
                   </span>
                   {getPlanStatusBadge(plan)}
                 </button>
@@ -260,19 +212,19 @@ export function WeeklyPlanClient({
           type="button"
           onClick={() => setShowCreatePlanModal(true)}
           className="btn btn-primary btn-sm"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
         >
-          <span>+ New Plan</span>
+          <span>+ New Sprint</span>
         </button>
       </div>
 
       {!activePlan ? (
-        /* No active plan selected or none exists */
+        /* No active plan */
         <div className="card" style={{ maxWidth: 580, margin: '40px auto', textAlign: 'center', padding: 36 }}>
           <div style={{ fontSize: 36, marginBottom: 12 }}>📅</div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>No Weekly Plan Selected</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>No Sprint Selected</h2>
           <p style={{ fontSize: 14, color: 'var(--color-text-muted)', marginBottom: 24 }}>
-            Create a new weekly plan or sprint to organize your team&apos;s tasks, track KPIs, and drive execution.
+            Create a new sprint to organize your team&apos;s work and track progress.
           </p>
           <button
             type="button"
@@ -280,374 +232,114 @@ export function WeeklyPlanClient({
             className="btn btn-primary"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            + Create New Weekly Plan
+            + Create New Sprint
           </button>
         </div>
       ) : (
         /* Active plan view */
         <div>
-          {/* Goal section */}
-          <div className="card" style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
-                    {activePlan.title || 'Weekly Plan'}
-                  </h2>
-                  {getPlanStatusBadge(activePlan)}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                  📅 {new Date(activePlan.week_start + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} →{' '}
-                  {new Date(activePlan.week_end + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => setEditingPlan(!editingPlan)}
-                  className="btn btn-ghost btn-sm"
-                >
-                  {editingPlan ? 'Cancel' : '✏️ Edit Plan'}
-                </button>
-                <form onSubmit={handleDeletePlan}>
-                  <input type="hidden" name="id" value={activePlan.id} />
-                  <button
-                    type="submit"
-                    className="btn btn-ghost btn-sm btn-icon"
-                    disabled={deletePlanPending}
-                    style={{ color: 'var(--color-danger)' }}
-                    title="Delete Plan"
-                  >
-                    🗑️
-                  </button>
-                </form>
-              </div>
+          {/* Sprint Dashboard */}
+          <SprintDashboard
+            activePlan={activePlan}
+            tasks={tasks}
+            onPlanUpdated={() => router.refresh()}
+          />
+
+          {/* Quick Actions Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => setShowCreateTask(true)}
+                className="btn btn-primary btn-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <span>+ Add Task to Sprint</span>
+              </button>
+              <Link
+                href={`/founder/tasks?plan=${activePlan.id}`}
+                className="btn btn-secondary btn-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                <span>📊 View Full Kanban</span>
+                <ExternalLink size={14} />
+              </Link>
             </div>
 
-            {editingPlan ? (
-              <form onSubmit={handleUpdatePlan} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
-                <input type="hidden" name="id" value={activePlan.id} />
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label className="label">Plan Title</label>
-                    <input
-                      name="title"
-                      className="input"
-                      defaultValue={activePlan.title || ''}
-                      placeholder="e.g. Sprint 2: Core Features"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="label">Weekly Goal</label>
-                    <input
-                      name="goal"
-                      className="input"
-                      defaultValue={activePlan.goal || ''}
-                      placeholder="e.g. Launch MVP & onboard first 10 users"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label className="label">Start Date</label>
-                    <input
-                      name="week_start"
-                      type="date"
-                      className="input"
-                      defaultValue={activePlan.week_start}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="label">End Date</label>
-                    <input
-                      name="week_end"
-                      type="date"
-                      className="input"
-                      defaultValue={activePlan.week_end}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                  <button
-                    type="button"
-                    onClick={() => setEditingPlan(false)}
-                    className="btn btn-secondary btn-sm"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={updatePlanPending}
-                    className="btn btn-primary btn-sm"
-                  >
-                    {updatePlanPending ? 'Saving…' : 'Save Plan'}
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <div style={{ marginTop: 6 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: 4 }}>
-                  GOAL:
-                </div>
-                <p style={{ fontSize: 15, color: 'var(--color-text-secondary)', fontStyle: activePlan.goal ? 'italic' : 'normal', margin: 0 }}>
-                  &ldquo;{activePlan.goal || 'No goal set for this sprint'}&rdquo;
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Add task toolbar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Tasks in this Plan ({tasks.length})</h2>
-            <button onClick={() => setShowCreateTask(!showCreateTask)} className="btn btn-primary btn-sm">
-              {showCreateTask ? '✕ Cancel' : '+ Add Task'}
+            <button
+              type="button"
+              onClick={handleDeletePlan}
+              className="btn btn-ghost btn-sm"
+              disabled={deletePlanPending}
+              style={{ color: 'var(--color-danger)' }}
+            >
+              🗑️ Delete Sprint
             </button>
           </div>
 
-          {/* Create Task Form */}
-          {showCreateTask && (
-            <div className="card" style={{ marginBottom: 20, borderColor: 'var(--color-brand)' }}>
-              <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>New Task for {activePlan.title || 'Weekly Plan'}</h3>
-              <form onSubmit={handleCreateTask} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <input type="hidden" name="startup_id" value={startupId} />
-                <input type="hidden" name="weekly_plan_id" value={activePlan.id} />
-                <div className="form-group">
-                  <label className="label">Title *</label>
-                  <input name="title" className="input" placeholder="Task title" required />
-                </div>
-                <div className="grid-2">
-                  <DomainSelectWithQuickAdd
-                    startupId={startupId}
-                    initialDomains={domains}
-                  />
-                  <div className="form-group">
-                    <label className="label">Priority</label>
-                    <select name="priority" className="input">
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HIGH">High</option>
-                      <option value="LOW">Low</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="grid-2">
-                  <div className="form-group">
-                    <label className="label">Due Date</label>
-                    <input
-                      name="due_date"
-                      type="date"
-                      className="input"
-                      defaultValue={activePlan.week_end}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="label">Assign To</label>
-                    <select name="assigned_to" className="input">
-                      <option value="">Unassigned</option>
-                      {staffMembers.map((m) => {
-                        if (!m.profile) return null
-                        const roleBadge = m.role ? ` • ${m.role}` : ''
-                        const emailStr = m.profile.email ? ` (${m.profile.email})` : ''
-                        return (
-                          <option key={m.user_id} value={m.user_id}>
-                            {m.profile.full_name}{emailStr}{roleBadge}
-                          </option>
-                        )
-                      })}
-                    </select>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label className="label">Description</label>
-                  <textarea name="description" className="input" rows={2} placeholder="Optional details…" />
-                </div>
-                <button type="submit" disabled={createTaskPending} className="btn btn-primary btn-sm" style={{ alignSelf: 'flex-start' }}>
-                  {createTaskPending ? 'Creating…' : 'Create Task'}
-                </button>
-              </form>
+          {/* Tab Navigation */}
+          <div style={{ borderBottom: '2px solid var(--color-border)', marginBottom: 20 }}>
+            <div style={{ display: 'flex', gap: 4 }}>
+              <button
+                type="button"
+                onClick={() => setViewMode('status')}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: viewMode === 'status' ? '2px solid var(--color-brand)' : '2px solid transparent',
+                  color: viewMode === 'status' ? 'var(--color-brand)' : 'var(--color-text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  marginBottom: -2,
+                }}
+              >
+                📋 By Status
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('team')}
+                style={{
+                  padding: '10px 20px',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: viewMode === 'team' ? '2px solid var(--color-brand)' : '2px solid transparent',
+                  color: viewMode === 'team' ? 'var(--color-brand)' : 'var(--color-text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  marginBottom: -2,
+                }}
+              >
+                👥 By Team Member
+              </button>
             </div>
-          )}
+          </div>
 
-          {/* Tasks by domain */}
-          {tasks.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">📋</div>
-              <h3>No tasks in this plan</h3>
-              <p>Add tasks above or assign existing tasks to this plan</p>
-            </div>
+          {/* Task Views */}
+          {viewMode === 'status' ? (
+            <StatusSummaryView
+              tasks={tasks}
+              domains={domains}
+              staffMembers={staffMembers}
+              planId={activePlan.id}
+              onTaskClick={(task) => setViewingTask(task)}
+            />
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {tasksByDomain.filter((g) => g.tasks.length > 0).map(({ domain, tasks: domTasks }) => (
-                <div key={domain.id}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-                    <span className="badge badge-info">{domain.name}</span>
-                    <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>
-                      {domTasks.filter((t) => t.status === 'DONE').length}/{domTasks.length} done
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {domTasks.map((task) => {
-                      const assignedMember = staffMembers.find((m) => m.user_id === task.assigned_to)
-                      return (
-                        <div key={task.id} className={`task-card ${task.status === 'DONE' ? 'done' : ''}`}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 6 }}>
-                                {task.title}
-                              </div>
-                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                                <span className={`badge ${statusColors[task.status] || 'badge-neutral'}`}>{task.status}</span>
-                                <span className={`badge ${priorityColors[task.priority] || 'badge-neutral'}`}>{task.priority}</span>
-                                {task.due_date && (
-                                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                                    Due {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                  </span>
-                                )}
-                                {assignedMember?.profile && (
-                                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                                    → {assignedMember.profile.full_name} {assignedMember.profile.email ? `(${assignedMember.profile.email})` : ''}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                              <button
-                                type="button"
-                                onClick={() => setEditingTask(task)}
-                                className="btn btn-secondary btn-sm"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                                title="Edit task"
-                              >
-                                ✏️ Edit
-                              </button>
-                              {task.status !== 'DONE' && (
-                                <form onSubmit={(e) => handleUpdateStatus(e, task)} style={{ display: 'flex', gap: 6 }}>
-                                  <input type="hidden" name="task_id" value={task.id} />
-                                  {task.status === 'TODO' && (
-                                    <button
-                                      type="submit"
-                                      name="status"
-                                      value="IN_PROGRESS"
-                                      className="btn btn-secondary btn-sm"
-                                      disabled={updateStatusPending}
-                                    >
-                                      Start
-                                    </button>
-                                  )}
-                                  <button
-                                    type="submit"
-                                    name="status"
-                                    value="DONE"
-                                    className="btn btn-primary btn-sm"
-                                    disabled={updateStatusPending}
-                                  >
-                                    ✓ Done
-                                  </button>
-                                </form>
-                              )}
-                              {task.status === 'DONE' && task.completion_status && (
-                                <span className={`badge ${task.completion_status === 'EARLY' ? 'badge-success' : task.completion_status === 'ON_TIME' ? 'badge-info' : 'badge-warning'}`}>
-                                  {task.completion_status}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-
-              {unassignedTasks.length > 0 && (
-                <div>
-                  <div style={{ marginBottom: 12 }}>
-                    <span className="badge badge-neutral">No Domain</span>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {unassignedTasks.map((task) => {
-                      const assignedMember = staffMembers.find((m) => m.user_id === task.assigned_to)
-                      return (
-                        <div key={task.id} className={`task-card ${task.status === 'DONE' ? 'done' : ''}`}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 6 }}>
-                                {task.title}
-                              </div>
-                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                                <span className={`badge ${statusColors[task.status] || 'badge-neutral'}`}>{task.status}</span>
-                                <span className={`badge ${priorityColors[task.priority] || 'badge-neutral'}`}>{task.priority}</span>
-                                {task.due_date && (
-                                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                                    Due {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                  </span>
-                                )}
-                                {assignedMember?.profile && (
-                                  <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>
-                                    → {assignedMember.profile.full_name} {assignedMember.profile.email ? `(${assignedMember.profile.email})` : ''}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                              <button
-                                type="button"
-                                onClick={() => setEditingTask(task)}
-                                className="btn btn-secondary btn-sm"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                                title="Edit task"
-                              >
-                                ✏️ Edit
-                              </button>
-                              {task.status !== 'DONE' && (
-                                <form onSubmit={(e) => handleUpdateStatus(e, task)} style={{ display: 'flex', gap: 6 }}>
-                                  <input type="hidden" name="task_id" value={task.id} />
-                                  {task.status === 'TODO' && (
-                                    <button
-                                      type="submit"
-                                      name="status"
-                                      value="IN_PROGRESS"
-                                      className="btn btn-secondary btn-sm"
-                                      disabled={updateStatusPending}
-                                    >
-                                      Start
-                                    </button>
-                                  )}
-                                  <button
-                                    type="submit"
-                                    name="status"
-                                    value="DONE"
-                                    className="btn btn-primary btn-sm"
-                                    disabled={updateStatusPending}
-                                  >
-                                    ✓ Done
-                                  </button>
-                                </form>
-                              )}
-                              {task.status === 'DONE' && task.completion_status && (
-                                <span className={`badge ${task.completion_status === 'EARLY' ? 'badge-success' : task.completion_status === 'ON_TIME' ? 'badge-info' : 'badge-warning'}`}>
-                                  {task.completion_status}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
+            <TeamWorkloadView
+              tasks={tasks}
+              domains={domains}
+              staffMembers={staffMembers}
+              onTaskClick={(task) => setViewingTask(task)}
+            />
           )}
         </div>
       )}
 
-      {/* Create Weekly Plan Modal */}
+      {/* Create Sprint Modal */}
       {showCreatePlanModal && (
         <ModalOverlay isOpen={showCreatePlanModal} onClose={() => setShowCreatePlanModal(false)}>
           <div
@@ -665,7 +357,7 @@ export function WeeklyPlanClient({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Create Weekly Plan</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Create New Sprint</h2>
               <button
                 type="button"
                 onClick={() => setShowCreatePlanModal(false)}
@@ -679,11 +371,11 @@ export function WeeklyPlanClient({
               <input type="hidden" name="startup_id" value={startupId} />
 
               <div className="form-group">
-                <label className="label">Plan Title</label>
+                <label className="label">Sprint Title</label>
                 <input
                   name="title"
                   className="input"
-                  placeholder="e.g. Sprint 1, Week 38, Marketing Sprint..."
+                  placeholder="e.g. Sprint 1, Week 38, Q1 Launch..."
                 />
               </div>
 
@@ -742,11 +434,11 @@ export function WeeklyPlanClient({
               </div>
 
               <div className="form-group">
-                <label className="label">Weekly Goal / Objective</label>
+                <label className="label">Sprint Goal / Objective</label>
                 <textarea
                   name="goal"
                   className="input"
-                  placeholder="e.g. Complete branding, build first prototype, acquire initial 20 leads…"
+                  placeholder="e.g. Complete MVP, onboard first 20 users, finalize branding…"
                   rows={3}
                 />
               </div>
@@ -761,12 +453,43 @@ export function WeeklyPlanClient({
                   Cancel
                 </button>
                 <button type="submit" disabled={createPlanPending} className="btn btn-primary">
-                  {createPlanPending ? 'Creating…' : 'Create Weekly Plan'}
+                  {createPlanPending ? 'Creating…' : 'Create Sprint'}
                 </button>
               </div>
             </form>
           </div>
         </ModalOverlay>
+      )}
+
+      {/* Create Task Modal */}
+      {showCreateTask && (
+        <TaskCreateModal
+          startupId={startupId}
+          domains={domains}
+          weeklyPlans={allPlans}
+          staffMembers={staffMembers}
+          isFounder={true}
+          isStaff={false}
+          currentUserId=""
+          currentPlanId={activePlan?.id}
+          onClose={() => setShowCreateTask(false)}
+        />
+      )}
+
+      {/* Task Detail Modal */}
+      {viewingTask && (
+        <TaskDetailModal
+          task={viewingTask}
+          onClose={() => setViewingTask(null)}
+          domains={domains}
+          weeklyPlans={allPlans}
+          staffMembers={staffMembers}
+          canEdit={true}
+          onEdit={(task) => {
+            setViewingTask(null)
+            setEditingTask(task)
+          }}
+        />
       )}
 
       {/* Task Edit Modal */}

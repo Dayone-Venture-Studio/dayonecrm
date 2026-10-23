@@ -1,6 +1,7 @@
 'use client'
 
 import { useOptimistic, useRef, useState, useTransition } from 'react'
+import { Building2, Calendar, AlertTriangle } from 'lucide-react'
 import { TaskFormModal } from '@/components/team/TaskFormModal'
 import { TaskDetailModal } from '@/components/team/TaskDetailModal'
 import { ModalOverlay, ModalCloseButton } from '@/components/ui/ModalOverlay'
@@ -125,6 +126,7 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
   }
 
   function handleUpdate(formData: FormData) {
+    if (editing) formData.set('id', editing.id)
     const title = String(formData.get('title') ?? 'Task')
     executeUpdate(() => updateTeamTask({}, formData), {
       success: {
@@ -287,43 +289,32 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
       </div>
 
 
-      {/* Board */}
-      {optimisticTasks.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">📋</div>
-          <h3>No tasks yet</h3>
-          <p>Create your first task to get started.</p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="btn btn-primary"
-            style={{ marginTop: 16 }}
-          >
-            + New Task
-          </button>
-        </div>
-      ) : (
-        <div className="kanban-board">
-          {COLUMNS.map((col) => {
-            const colTasks = visible.filter((t) => t.status === col.key)
-            return (
-              <div
-                key={col.key}
-                className={`kanban-column ${dragOverColumn === col.key ? 'drag-over' : ''}`}
-                onDragOver={(e) => handleDragOver(e, col.key)}
-                onDragLeave={() => setDragOverColumn(null)}
-                onDrop={(e) => handleDrop(e, col.key)}
-              >
-                <div className="kanban-column-header">
-                  <span className="kanban-column-title">{col.label}</span>
-                  <span className="kanban-column-count">{colTasks.length}</span>
-                </div>
+      {/* Board — always rendered so each column can show its own empty state */}
+      <div className="kanban-board">
+        {COLUMNS.map((col) => {
+          const colTasks = visible.filter((t) => t.status === col.key)
+          return (
+            <div
+              key={col.key}
+              className={`kanban-column ${dragOverColumn === col.key ? 'drag-over' : ''}`}
+              onDragOver={(e) => handleDragOver(e, col.key)}
+              onDragLeave={() => setDragOverColumn(null)}
+              onDrop={(e) => handleDrop(e, col.key)}
+            >
+              <div className="kanban-column-header">
+                <span className="kanban-column-title">{col.label}</span>
+                <span className="kanban-column-count">{colTasks.length}</span>
+              </div>
 
-                <div className="kanban-tasks">
-                  {colTasks.length === 0 ? (
-                    <div className="kanban-empty">
-                      {dragOverColumn === col.key ? 'Drop here' : 'No tasks'}
-                    </div>
-                  ) : (
+              <div className="kanban-tasks">
+                {colTasks.length === 0 ? (
+                  <div className="kanban-empty kanban-empty-section">
+                    <span className="kanban-empty-icon">📋</span>
+                    <span className="kanban-empty-text">
+                      {dragOverColumn === col.key ? 'Drop here' : `No tasks in ${col.label}`}
+                    </span>
+                  </div>
+                ) : (
                     colTasks.map((task) => (
                       <div
                         key={task.id}
@@ -354,27 +345,41 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
                                 {task.priority}
                               </span>
                             </div>
+                            {task.description && (
+                              <div className="task-card-description task-card-description--single">
+                                {task.description}
+                              </div>
+                            )}
 
-                            <div className="task-card-badges">
+                            <div className="task-card-meta-row">
                               {task.department && (
-                                <span className="badge badge-neutral">{task.department}</span>
+                                <span className="task-card-meta-item">
+                                  <Building2 size={13} className="task-card-meta-icon" />
+                                  {task.department}
+                                </span>
                               )}
                               {task.due_date && (
                                 <span
-                                  className={`badge ${isOverdue(task) ? 'badge-danger' : 'badge-neutral'}`}
+                                  className={`task-card-meta-item ${isOverdue(task) ? 'task-card-meta-item--overdue' : ''}`}
                                 >
-                                  {isOverdue(task) ? '⚠ ' : ''}
+                                  {isOverdue(task) ? (
+                                    <AlertTriangle size={13} className="task-card-meta-icon" />
+                                  ) : (
+                                    <Calendar size={13} className="task-card-meta-icon" />
+                                  )}
                                   {task.due_date}
                                 </span>
                               )}
                             </div>
 
-                            <div className="task-card-meta">
-                              <span className="avatar" style={{ fontSize: 11 }}>
-                                {(task.assigned_profile?.full_name || 'U').charAt(0)}
-                              </span>
-                              {task.assigned_profile?.full_name || 'Unassigned'}
-                            </div>
+                            {isProjectManager && (
+                              <div className="task-card-meta">
+                                <span className="avatar avatar-sm">
+                                  {(task.assigned_profile?.full_name || 'U').charAt(0)}
+                                </span>
+                                <span>{task.assigned_profile?.full_name || 'Unassigned'}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -385,7 +390,6 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
             )
           })}
         </div>
-      )}
 
       {/* Create */}
       <TaskFormModal

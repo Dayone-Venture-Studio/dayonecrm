@@ -91,7 +91,7 @@ export function StartupDetailClient({
     <>
       <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-sm">
         {/* Tabs */}
-        <div className="flex border-b border-border-subtle px-2 bg-surface-2">
+        <div className="flex border-b border-border-subtle px-2">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const isActive = activeTab === tab.id

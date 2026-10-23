@@ -74,11 +74,11 @@ async function TabSection({ tab, startupId, startupName }: TabSectionProps) {
 
 export default function StartupDetailPage({ params, searchParams }: Props) {
   return (
-    <div className="flex flex-col gap-6 mx-auto w-full max-w-[1200px] px-8 py-6">
+    <div className="flex flex-col gap-6 mx-auto w-full px-8 py-6">
       {/* Back Navigation */}
       <Link
         href="/venture-manager"
-        className="inline-flex items-center gap-1.5 text-brand text-sm font-semibold no-underline -mb-2"
+        className="inline-flex items-center gap-1.5 text-brand text-sm font-semibold no-underline mb-2"
       >
         <ArrowLeft size={16} />
         Back to Portfolio
