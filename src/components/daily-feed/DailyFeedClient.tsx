@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useServerAction } from '@/lib/hooks/useServerAction'
 import { submitDailyReport, deleteDailyReport } from '@/features/team/report-actions'
 import type { DailyReport } from '@/lib/team/report-queries'
 import type { DailyReportSubmission, DailyReportWithProfile } from '@/lib/team/report-queries'
-import { ChevronLeft, ChevronRight, Plus, CheckCircle2, ListTodo, Clock, AlertTriangle, CalendarDays, Target, Inbox, MoreHorizontal, Edit2, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, CheckCircle2, ListTodo, Clock, AlertTriangle, CalendarDays, Target, Inbox, MoreHorizontal, Edit2, Trash2, Calendar } from 'lucide-react'
 import { ModalOverlay, ModalCloseButton } from '@/components/ui/ModalOverlay'
 
 interface Props {
@@ -52,6 +52,7 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
   const router = useRouter()
   const [composerOpen, setComposerOpen] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const dateInputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
 
   const today = toLocalISO(new Date())
@@ -104,6 +105,49 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
             )}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minHeight: 44, minWidth: 44 }}>
+              <button
+                type="button"
+                onClick={() => dateInputRef.current?.showPicker?.()}
+                aria-label="Pick date"
+                style={{
+                  minHeight: 44,
+                  minWidth: 44,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                <Calendar size={20} />
+              </button>
+              <input
+                ref={dateInputRef}
+                type="date"
+                name="calendar_date"
+                id="calendar_date"
+                defaultValue={selectedDate}
+                max={today}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (val && val <= today) {
+                    navigate(val)
+                  }
+                }}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  opacity: 0,
+                  pointerEvents: 'none',
+                }}
+              />
+            </div>
             <button
               type="button"
               className="btn btn-ghost btn-sm"
@@ -342,6 +386,8 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
           style={{ position: 'fixed', inset: 0, zIndex: 15 }}
         />
       )}
+
+
 
       {/* Floating Add button (today only) - rendered outside scrollable container */}
       {selectedDate === today && (
