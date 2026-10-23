@@ -39,6 +39,15 @@ function tasksToText(tasks: { title: string }[]): string {
   return tasks.map((t) => `- ${t.title}`).join('\n')
 }
 
+function formatTime12(time: string | undefined): string {
+  if (!time) return ''
+  const [h, m] = time.split(':')
+  if (h === undefined || m === undefined) return time
+  const d = new Date()
+  d.setHours(Number(h), Number(m), 0, 0)
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+}
+
 export function DailyFeedClient({ report, reports, existing, selectedDate, currentUserId }: Props) {
   const router = useRouter()
   const [composerOpen, setComposerOpen] = useState(false)
@@ -192,15 +201,19 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
                     )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        fontSize: 15,
-                        color: 'var(--color-text-primary, #000000)',
-                        textAlign: 'right',
-                      }}
-                    >
-                      {new Date(r.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div style={{ textAlign: 'right' }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: 15,
+                          color: 'var(--color-text-primary, #000000)',
+                        }}
+                      >
+                        {formatTime12((r.content as Record<string, string>)?.login_time) || new Date(r.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>
+                        Posted {new Date(r.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </div>
                     </div>
                     {r.user_id === currentUserId && (
                       <div style={{ position: 'relative' }}>
@@ -357,6 +370,17 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
             <div style={{ overflowY: 'auto', flex: 1, minHeight: 0, scrollbarWidth: 'none' }} className="daily-feed-composer-body">
               <form action={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <input type="hidden" name="report_date" value={selectedDate} />
+
+              <div className="form-group">
+                <label className="label">Login Time</label>
+                <input
+                  type="time"
+                  name="login_time"
+                  className="input"
+                  defaultValue={(existing?.content as Record<string, string>)?.login_time || new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                  style={{ width: '100%', minHeight: 44 }}
+                />
+              </div>
 
               {[
                 ['yesterday', 'Yesterday — Key Work Completed', tasksToText(report.yesterdayCompleted), 3],
