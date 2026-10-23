@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { PageHeader } from '@/components/layout/PageHeader'
-import { requireEmployee } from '@/lib/auth/requireRole'
+import { requireTeamMember } from '@/lib/auth/requireRole'
 import { getMyTeamTasks } from '@/lib/team/task-queries'
 import { buildDailyReport, getAllReportsByDate } from '@/lib/team/report-queries'
 import { DailyFeedClient } from '@/components/daily-feed/DailyFeedClient'
@@ -29,7 +29,7 @@ export default async function DailyFeedPage({
 }: {
   searchParams: Promise<{ date?: string }>
 }) {
-  const session = await requireEmployee()
+  const session = await requireTeamMember()
   const params = await searchParams
   const today = toLocalISO(new Date())
   const rawDate = params?.date || today

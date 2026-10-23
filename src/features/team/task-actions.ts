@@ -66,7 +66,7 @@ export async function createTeamTask(
     .select('id')
     .single()
 
-  if (error || !task) return { error: 'Failed to create task' }
+  if (error || !task) return { error: `Failed to create task: ${error?.message || 'unknown error'}` }
 
   await supabase.from('team_task_activities').insert({
     task_id: task.id,
@@ -126,7 +126,7 @@ export async function updateTeamTask(
   }
 
   const { error } = await supabase.from('team_tasks').update(update).eq('id', id)
-  if (error) return { error: 'Failed to update task' }
+  if (error) return { error: `Failed to update task: ${error.message}` }
 
   await logActivity({
     action: 'UPDATED_TEAM_TASK',
@@ -168,7 +168,7 @@ export async function updateTeamTaskStatus(
   if (current.status === status) return { success: 'No change' }
 
   const { error } = await supabase.from('team_tasks').update({ status }).eq('id', taskId)
-  if (error) return { error: 'Failed to update task status' }
+  if (error) return { error: `Failed to update task status: ${error.message}` }
 
   await supabase.from('team_task_activities').insert({
     task_id: taskId,
@@ -205,7 +205,7 @@ export async function deleteTeamTask(
 
   const supabase = await createClient()
   const { error } = await supabase.from('team_tasks').delete().eq('id', id)
-  if (error) return { error: 'Failed to delete task' }
+  if (error) return { error: `Failed to delete task: ${error.message}` }
 
   revalidatePath('/daily-sprint')
   return { success: 'Task deleted.' }
