@@ -83,6 +83,7 @@ export async function createTeamTask(
   })
 
   revalidatePath('/daily-sprint')
+  revalidatePath('/daily-report')
   return { success: 'Task created.', data: { taskId: task.id } }
 }
 
@@ -135,6 +136,7 @@ export async function updateTeamTask(
   })
 
   revalidatePath('/daily-sprint')
+  revalidatePath('/daily-report')
   return { success: 'Task updated.' }
 }
 
