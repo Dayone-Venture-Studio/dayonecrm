@@ -96,7 +96,7 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 6,
-            padding: '8px 0',
+            padding: '0 8px',
           }}
         >
           <div style={{ textAlign: 'left', flex: 1 }}>

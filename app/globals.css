@@ -559,10 +559,10 @@ tr:hover td { background: #faf8eb; color: var(--color-text-primary); }
   align-items: center;
   justify-content: center;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
   flex-shrink: 0;
 }
-.avatar-sm { width: 28px; height: 28px; font-size: 11px; }
+.avatar-sm { width: 28px; height: 28px; font-size: 19px; }
 .avatar-lg { width: 44px; height: 44px; font-size: 16px; }
 
 /* ── Chart container ── */
@@ -1042,7 +1042,7 @@ tr:hover td { background: #faf8eb; color: var(--color-text-primary); }
 }
 
 .task-card-meta {
-  font-size: 12px;
+  font-size: 15px;
   color: var(--color-text-secondary);
   display: flex;
   align-items: center;
