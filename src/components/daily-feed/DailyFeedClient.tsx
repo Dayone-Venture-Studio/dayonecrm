@@ -6,8 +6,10 @@ import { useServerAction } from '@/lib/hooks/useServerAction'
 import { submitDailyReport, deleteDailyReport } from '@/features/team/report-actions'
 import type { DailyReport } from '@/lib/team/report-queries'
 import type { DailyReportSubmission, DailyReportWithProfile } from '@/lib/team/report-queries'
+import type { Role, LoginTimeEmployee } from '@/types'
 import { ChevronLeft, ChevronRight, Plus, CheckCircle2, ListTodo, Clock, AlertTriangle, CalendarDays, Target, Inbox, MoreHorizontal, Edit2, Trash2, Calendar } from 'lucide-react'
 import { ModalOverlay, ModalCloseButton } from '@/components/ui/ModalOverlay'
+import { PMExportPanel } from './PMExportPanel'
 
 interface Props {
   report: DailyReport
@@ -15,6 +17,8 @@ interface Props {
   existing: DailyReportSubmission | null
   selectedDate: string
   currentUserId: string
+  userRole: Role
+  teamMembers?: LoginTimeEmployee[]
 }
 
 function toLocalISO(d: Date): string {
@@ -48,7 +52,7 @@ function formatTime12(time: string | undefined): string {
   return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
 }
 
-export function DailyFeedClient({ report, reports, existing, selectedDate, currentUserId }: Props) {
+export function DailyFeedClient({ report, reports, existing, selectedDate, currentUserId, userRole, teamMembers }: Props) {
   const router = useRouter()
   const [composerOpen, setComposerOpen] = useState(false)
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -87,7 +91,14 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
   }
 
   return (
-    <div className="daily-feed-root" style={{ maxWidth: 740, margin: '0 auto', padding: '0 var(--df-px) 96px' }}>
+    <div className="daily-feed-container">
+      {/* PM Export Panel - only for PROJECT_MANAGER */}
+      {userRole === 'PROJECT_MANAGER' && teamMembers && (
+        <PMExportPanel userRole={userRole} teamMembers={teamMembers} />
+      )}
+
+      <div className="daily-feed-content">
+        <div className="daily-feed-root" style={{ maxWidth: 740, margin: '0 auto', padding: '0 var(--df-px) 96px' }}>
       {/* Date navigator - sticky below page header */}
       <div className="sticky-date-nav">
         <div
@@ -469,6 +480,8 @@ export function DailyFeedClient({ report, reports, existing, selectedDate, curre
             </div>
         </div>
       </ModalOverlay>
+        </div>
+      </div>
     </div>
   )
 }
