@@ -33,6 +33,7 @@ export interface Profile {
   phone: string | null
   role: Role
   department?: string | null
+  must_change_password?: boolean
   created_at: string
   updated_at: string
 }
@@ -297,6 +298,7 @@ export interface SessionUser {
   email: string
   role: Role
   full_name: string
+  must_change_password?: boolean
 }
 
 // ─── Login Time Export Types ────────────────────────────────────────────────

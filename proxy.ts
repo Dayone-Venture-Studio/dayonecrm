@@ -59,20 +59,31 @@ export async function proxy(request: NextRequest) {
   if (user) {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, must_change_password')
       .eq('id', user.id)
       .single()
 
     const role = profile?.role
+    const mustChange = Boolean(profile?.must_change_password)
 
     // Redirect from login/register to correct dashboard if already logged in
     if (pathname === '/login' || pathname === '/register') {
       const url = request.nextUrl.clone()
-      if (role === 'ADMIN') url.pathname = '/admin'
+      if (mustChange) {
+        url.pathname = '/change-password'
+      } else if (role === 'ADMIN') url.pathname = '/admin'
       else if (role === 'FOUNDER') url.pathname = '/founder'
       else if (role === 'STAFF') url.pathname = '/staff'
       else if (role === 'VENTURE_MANAGER') url.pathname = '/venture-manager'
+      else if (role === 'PROJECT_MANAGER' || role === 'EMPLOYEE') url.pathname = '/daily-sprint'
       else url.pathname = '/'
+      return NextResponse.redirect(url)
+    }
+
+    // Force one-time password change before any protected surface.
+    if (mustChange && pathname !== '/change-password') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/change-password'
       return NextResponse.redirect(url)
     }
 

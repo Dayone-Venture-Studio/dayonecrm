@@ -74,6 +74,7 @@ export async function createTeamMember(
     phone: phone || null,
     role,
     department,
+    must_change_password: true,
   })
 
   if (profileError) {
