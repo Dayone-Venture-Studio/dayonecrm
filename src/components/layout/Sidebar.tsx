@@ -8,6 +8,8 @@ import { isNavItemActive, type NavItem } from '@/components/layout/nav'
 import {
   LayoutDashboard,
   CalendarRange,
+  CalendarDays,
+  CalendarX2,
   CheckSquare,
   Users2,
   Layers,
@@ -19,6 +21,8 @@ import {
   Building2,
   Sparkles,
   Tv,
+  Newspaper,
+  Kanban,
 } from 'lucide-react'
 
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
@@ -72,6 +76,16 @@ function renderNavIcon(icon: string) {
     case 'activity':
     case '⚡':
       return <Activity {...iconProps} />
+    case 'daily-feed':
+    case '📰':
+      return <Newspaper {...iconProps} />
+    case 'daily-sprint':
+    case '🗓️':
+    case 'calendar':
+      return <Kanban {...iconProps} />
+    case 'leave':
+    case '🌿':
+      return <CalendarX2 {...iconProps} />
     default:
       return <LayoutDashboard {...iconProps} />
   }
