@@ -58,6 +58,22 @@ const getFounderTasksData = cache(async () => {
     profile: profilesById.get(m.user_id) ?? null,
   }))
 
+  // Also allow assigning tasks to venture managers.
+  const { data: vmProfiles } = await getAdminClient()
+    .from('profiles')
+    .select('id, full_name, email')
+    .eq('role', 'VENTURE_MANAGER')
+
+  const vmMembers = ((vmProfiles ?? []) as Array<{ id: string; full_name: string; email: string | null }>).map(
+    (p) => ({
+      user_id: p.id,
+      role: 'VENTURE_MANAGER',
+      profile: p,
+    })
+  )
+
+  staffMembers.push(...vmMembers)
+
   return {
     startupId,
     tasks: tasks || [],
