@@ -23,6 +23,7 @@ import {
   Tv,
   Newspaper,
   Kanban,
+  Compass,
 } from 'lucide-react'
 
 import { CompanyLogo } from '@/components/brand/CompanyLogo'
@@ -86,6 +87,9 @@ function renderNavIcon(icon: string) {
     case 'leave':
     case '🌿':
       return <CalendarX2 {...iconProps} />
+    case 'venture-managers':
+    case '🧭':
+      return <Compass {...iconProps} />
     default:
       return <LayoutDashboard {...iconProps} />
   }

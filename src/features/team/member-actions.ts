@@ -199,8 +199,12 @@ export async function resetTeamMemberPassword(
     .single()
 
   if (profileError || !profile) return { error: 'Team member not found' }
-  if (profile.role !== 'EMPLOYEE' && profile.role !== 'PROJECT_MANAGER') {
-    return { error: 'Can only reset passwords for team members' }
+  if (
+    profile.role !== 'EMPLOYEE' &&
+    profile.role !== 'PROJECT_MANAGER' &&
+    profile.role !== 'VENTURE_MANAGER'
+  ) {
+    return { error: 'Can only reset passwords for team members or venture managers' }
   }
 
   const tempPassword = generateTempPassword()
