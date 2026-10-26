@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getAdminClient } from '@/lib/supabase/admin'
+import crypto from 'crypto'
 import { getSession } from '@/lib/auth/getSession'
 import { logActivity } from '@/features/activity/actions'
 import { DEPARTMENTS } from '@/lib/team/constants'
@@ -154,4 +155,77 @@ export async function deleteTeamMember(
 
   revalidatePath('/admin/team')
   return { success: 'Team member deleted.' }
+}
+
+const ResetPasswordSchema = z.object({
+  id: z.string().uuid(),
+})
+
+function generateTempPassword(length = 12): string {
+  const chars =
+    'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%&*'
+  const bytes = crypto.randomBytes(length)
+  let result = ''
+  for (let i = 0; i < length; i++) {
+    result += chars[bytes[i] % chars.length]
+  }
+  return result
+}
+
+/** Admin resets a team member's password to a new temporary value. */
+export async function resetTeamMemberPassword(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const validated = ResetPasswordSchema.safeParse({ id: formData.get('id') })
+  if (!validated.success) return { error: 'Invalid member ID' }
+
+  const session = await getSession()
+  if (!session || session.role !== 'ADMIN') return { error: 'Unauthorized' }
+
+  const { id } = validated.data
+  const adminClient = getAdminClient()
+
+  const { data: profile, error: profileError } = await adminClient
+    .from('profiles')
+    .select('full_name, role')
+    .eq('id', id)
+    .single()
+
+  if (profileError || !profile) return { error: 'Team member not found' }
+  if (profile.role !== 'EMPLOYEE' && profile.role !== 'PROJECT_MANAGER') {
+    return { error: 'Can only reset passwords for team members' }
+  }
+
+  const tempPassword = generateTempPassword()
+
+  const { error: updateError } = await adminClient.auth.admin.updateUserById(id, {
+    password: tempPassword,
+  })
+
+  if (updateError) {
+    return { error: updateError.message || 'Failed to reset password' }
+  }
+
+  const { error: flagError } = await adminClient
+    .from('profiles')
+    .update({ must_change_password: true })
+    .eq('id', id)
+
+  if (flagError) {
+    return { error: 'Password reset but failed to update profile state' }
+  }
+
+  await logActivity({
+    action: 'RESET_TEAM_MEMBER_PASSWORD',
+    entityType: 'profile',
+    entityId: id,
+    metadata: { member_name: profile.full_name },
+  })
+
+  revalidatePath('/admin/team')
+  return {
+    success: `Password reset for ${profile.full_name}. Share the temporary password securely.`,
+    data: { password: tempPassword, memberId: id, memberName: profile.full_name },
+  }
 }
