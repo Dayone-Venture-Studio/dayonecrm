@@ -1,5 +1,6 @@
 import { Suspense, cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
+import { getAdminClient } from '@/lib/supabase/admin'
 import { getSession } from '@/lib/auth/getSession'
 import { getMembershipForUser } from '@/lib/startups/queries'
 import { TasksClient } from '@/components/tasks/TasksClient'
@@ -18,7 +19,7 @@ const getFounderTasksData = cache(async () => {
   const startupId = membership?.startup_id
   if (!startupId) return null
 
-  const [{ data: tasks }, { data: domains }, { data: weeklyPlans }, { data: staff }] =
+  const [{ data: tasks }, { data: domains }, { data: weeklyPlans }, { data: members }] =
     await Promise.all([
       supabase
         .from('tasks')
@@ -33,17 +34,36 @@ const getFounderTasksData = cache(async () => {
         .order('week_start', { ascending: false }),
       supabase
         .from('startup_members')
-        .select('user_id, role, profile:profiles(id, full_name, email)')
+        .select('user_id, role')
         .eq('startup_id', startupId)
         .order('created_at', { ascending: true }),
     ])
+
+  const typedMembers = (members ?? []) as Array<{ user_id: string; role: string }>
+  const memberIds = typedMembers.map((m) => m.user_id)
+  let profilesById = new Map<string, { id: string; full_name: string; email: string | null }>()
+  if (memberIds.length > 0) {
+    const adminClient = getAdminClient()
+    const { data: profiles } = await adminClient
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', memberIds)
+    const typedProfiles = (profiles ?? []) as Array<{ id: string; full_name: string; email: string | null }>
+    profilesById = new Map(typedProfiles.map((p) => [p.id, p]))
+  }
+
+  const staffMembers = typedMembers.map((m) => ({
+    user_id: m.user_id,
+    role: m.role,
+    profile: profilesById.get(m.user_id) ?? null,
+  }))
 
   return {
     startupId,
     tasks: tasks || [],
     domains: domains || [],
     weeklyPlans: weeklyPlans || [],
-    staffMembers: (staff as any) || [],
+    staffMembers,
   }
 })
 
