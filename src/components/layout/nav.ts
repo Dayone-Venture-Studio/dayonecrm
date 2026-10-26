@@ -49,6 +49,7 @@ export const ventureManagerNav: NavItem[] = [
 export const dailySprintNav: NavItem[] = [
   { href: '/daily-feed', label: 'Daily Feed', icon: '📰', match: 'exact' },
   { href: '/daily-sprint', label: 'Daily Sprint', icon: '🗓️', match: 'exact' },
+  { href: '/leave', label: 'Leave', icon: '🌿', match: 'exact' },
 ]
 
 /** Founder nav gets a TV wall link pointed at that founder's own startup when known. */
