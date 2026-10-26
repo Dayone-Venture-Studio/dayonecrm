@@ -149,6 +149,12 @@ export async function deleteTeamMember(
   if (session.id === id) return { error: 'You cannot delete your own account.' }
 
   const adminClient = getAdminClient()
+
+  // Remove rows that reference this user without ON DELETE CASCADE so the
+  // auth account (and its cascading profile) can be deleted cleanly.
+  await adminClient.from('activity_logs').delete().eq('user_id', id)
+  await adminClient.from('leave_requests').delete().eq('user_id', id)
+
   const { error } = await adminClient.auth.admin.deleteUser(id)
 
   if (error) return { error: error.message || 'Failed to delete team member' }
