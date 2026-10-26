@@ -298,3 +298,59 @@ export interface SessionUser {
   role: Role
   full_name: string
 }
+
+// ─── Login Time Export Types ────────────────────────────────────────────────
+
+/** Employee information for login time export */
+export interface LoginTimeEmployee {
+  id: string
+  full_name: string
+  department: string | null
+  email: string | null
+}
+
+/** Login time data structure: date -> userId -> time */
+export interface LoginTimeData {
+  [date: string]: {
+    [userId: string]: string | null
+  }
+}
+
+/** Complete login time matrix for export */
+export interface LoginTimeMatrix {
+  dateRange: {
+    start: string
+    end: string
+  }
+  employees: LoginTimeEmployee[]
+  data: LoginTimeData
+}
+
+/** Export format options */
+export type ExportFormat = 'csv' | 'xlsx'
+
+/** Export period options */
+export type ExportPeriod = 'week' | 'month'
+
+/** Attendance statistics */
+export interface AttendanceStats {
+  averageLoginTime: string | null
+  attendanceRate: number
+  earlyCount: number
+  onTimeCount: number
+  lateCount: number
+  totalDays: number
+  presentDays: number
+  employeeStats: {
+    id: string
+    name: string
+    attendance: number
+    averageTime: string | null
+  }[]
+}
+
+/** Filter options for export */
+export interface ExportFilterOptions {
+  departmentFilters?: string[]
+  employeeFilters?: string[]
+}

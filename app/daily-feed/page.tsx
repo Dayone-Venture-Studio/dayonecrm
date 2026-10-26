@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
-import { PageHeader } from '@/components/layout/PageHeader'
-import { requireEmployee } from '@/lib/auth/requireRole'
+import { requireTeamMember } from '@/lib/auth/requireRole'
 import { getMyTeamTasks } from '@/lib/team/task-queries'
 import { buildDailyReport, getAllReportsByDate } from '@/lib/team/report-queries'
+import { getTeamMembers } from '@/lib/team/export-queries'
 import { DailyFeedClient } from '@/components/daily-feed/DailyFeedClient'
 
 export const metadata: Metadata = { title: 'Daily Feed' }
@@ -29,7 +29,7 @@ export default async function DailyFeedPage({
 }: {
   searchParams: Promise<{ date?: string }>
 }) {
-  const session = await requireEmployee()
+  const session = await requireTeamMember()
   const params = await searchParams
   const today = toLocalISO(new Date())
   const rawDate = params?.date || today
@@ -42,6 +42,12 @@ export default async function DailyFeedPage({
   const allReports = await getAllReportsByDate(date)
   const existing = allReports.find((r) => r.user_id === session.id) || null
 
+  // Fetch team members for PROJECT_MANAGER export panel
+  let teamMembers = undefined
+  if (session.role === 'PROJECT_MANAGER') {
+    teamMembers = await getTeamMembers()
+  }
+
   return (
     <div className="scroll-container">
       {/* <PageHeader title="Daily Feed" subtitle="Team daily updates" sticky /> */}
@@ -51,6 +57,8 @@ export default async function DailyFeedPage({
         existing={existing}
         selectedDate={date}
         currentUserId={session.id}
+        userRole={session.role}
+        teamMembers={teamMembers}
       />
       <div style={{marginBottom: '2rem'}}></div>
     </div>

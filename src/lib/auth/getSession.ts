@@ -24,7 +24,7 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
   return {
     id: user.id,
     email: user.email!,
-    role: profile.role,
+    role: (profile.role || '').trim().toUpperCase(),
     full_name: profile.full_name,
   }
 })
