@@ -33,6 +33,7 @@ export interface Profile {
   phone: string | null
   role: Role
   department?: string | null
+  must_change_password?: boolean
   created_at: string
   updated_at: string
 }
@@ -252,6 +253,33 @@ export interface TeamTaskActivity {
 
 export type TeamMemberSummary = Pick<Profile, 'id' | 'full_name' | 'email' | 'department'>
 
+// ─── Leave Requests ──────────────────────────────────────────
+
+export type LeaveDurationType = 'FULL_DAY' | 'HALF_DAY'
+export type HalfDaySlot = 'FIRST_HALF' | 'SECOND_HALF'
+export type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED'
+
+export interface LeaveRequest {
+  id: string
+  user_id: string
+  duration_type: LeaveDurationType
+  half_day_slot: HalfDaySlot | null
+  start_date: string
+  end_date: string
+  reason: string
+  status: LeaveStatus
+  reviewed_by: string | null
+  reviewed_at: string | null
+  review_note: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface LeaveRequestWithProfile extends LeaveRequest {
+  requester: Pick<Profile, 'id' | 'full_name' | 'email' | 'department' | 'role'> | null
+  reviewer: Pick<Profile, 'id' | 'full_name'> | null
+}
+
 /** Team task row with the profiles it is rendered with. */
 export interface TeamTaskWithDetails extends TeamTask {
   assigned_profile: TeamMemberSummary | null
@@ -297,6 +325,7 @@ export interface SessionUser {
   email: string
   role: Role
   full_name: string
+  must_change_password?: boolean
 }
 
 // ─── Login Time Export Types ────────────────────────────────────────────────

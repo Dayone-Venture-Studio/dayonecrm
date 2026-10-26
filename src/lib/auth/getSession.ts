@@ -15,7 +15,7 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, role')
+    .select('full_name, role, must_change_password')
     .eq('id', user.id)
     .single()
 
@@ -26,5 +26,6 @@ export const getSession = cache(async (): Promise<SessionUser | null> => {
     email: user.email!,
     role: (profile.role || '').trim().toUpperCase(),
     full_name: profile.full_name,
+    must_change_password: Boolean(profile.must_change_password),
   }
 })

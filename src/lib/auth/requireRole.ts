@@ -18,6 +18,11 @@ export async function requireRole(allowedRoles: Role[]): Promise<SessionUser> {
     redirect('/unauthorized')
   }
 
+  // Enforce one-time password change before any protected surface is reachable.
+  if (session.must_change_password) {
+    redirect('/change-password')
+  }
+
   return session
 }
 

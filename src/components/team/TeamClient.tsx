@@ -6,6 +6,7 @@ import {
   createTeamMember,
   updateTeamMember,
   deleteTeamMember,
+  resetTeamMemberPassword,
 } from '@/features/team/member-actions'
 import { DEPARTMENTS } from '@/lib/team/constants'
 import { useServerAction } from '@/lib/hooks/useServerAction'
@@ -125,10 +126,19 @@ function MemberForm({ action, pending, member, onCancel }: MemberFormProps) {
   )
 }
 
+type ResetResult = {
+  password: string
+  memberId: string
+  memberName: string
+}
+
 export function TeamClient({ members }: Props) {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState<Profile | null>(null)
   const [deleting, setDeleting] = useState<Profile | null>(null)
+  const [resetResult, setResetResult] = useState<ResetResult | null>(null)
+  const [resettingId, setResettingId] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
 
   // Replace useTransition with useServerAction for automatic toast notifications
   const [executeCreate, addPending] = useServerAction({
@@ -146,6 +156,19 @@ export function TeamClient({ members }: Props) {
   const [executeDelete, deletePending] = useServerAction({
     onSuccess: () => {
       setDeleting(null)
+    },
+  })
+
+  const [executeReset] = useServerAction<ResetResult>({
+    onSuccess: (data) => {
+      setResettingId(null)
+      if (data?.password) {
+        setResetResult(data)
+        setCopied(false)
+      }
+    },
+    onError: () => {
+      setResettingId(null)
     },
   })
 
@@ -189,6 +212,34 @@ export function TeamClient({ members }: Props) {
         description: error,
       }),
     })
+  }
+
+  function handleReset(member: Profile) {
+    if (resettingId) return
+    setResettingId(member.id)
+    const formData = new FormData()
+    formData.set('id', member.id)
+    executeReset(() => resetTeamMemberPassword({}, formData), {
+      success: {
+        title: 'Password reset.',
+        description: `Share the new temporary password with ${member.full_name}.`,
+      },
+      error: (error) => ({
+        title: 'Could not reset password.',
+        description: error,
+      }),
+    })
+  }
+
+  async function handleCopyPassword() {
+    if (!resetResult?.password) return
+    try {
+      await navigator.clipboard.writeText(resetResult.password)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard may be unavailable (e.g. insecure context); the field is still selectable.
+    }
   }
 
   return (
@@ -272,6 +323,13 @@ export function TeamClient({ members }: Props) {
                         Edit
                       </button>
                       <button
+                        onClick={() => handleReset(member)}
+                        className="btn btn-secondary btn-sm"
+                        disabled={resettingId !== null}
+                      >
+                        {resettingId === member.id ? 'Resetting…' : 'Reset Password'}
+                      </button>
+                      <button
                         onClick={() => setDeleting(member)}
                         className="btn btn-danger btn-sm"
                       >
@@ -337,6 +395,63 @@ export function TeamClient({ members }: Props) {
               {deletePending ? 'Deleting…' : 'Delete Permanently'}
             </button>
           </form>
+        </div>
+      </ModalOverlay>
+
+      {/* Password reset result */}
+      <ModalOverlay
+        isOpen={!!resetResult}
+        onClose={() => {
+          setResetResult(null)
+          setCopied(false)
+        }}
+      >
+        <div className="card" style={{ width: '100%', maxWidth: 480 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
+            Password reset successfully
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginBottom: 16 }}>
+            Share this temporary password with{' '}
+            <strong style={{ color: 'var(--color-text-primary)' }}>
+              {resetResult?.memberName}
+            </strong>
+            . They will be asked to change it on their next login. This password will not be shown
+            again.
+          </p>
+
+          <div className="form-group">
+            <label className="label">Temporary password</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <input
+                className="input"
+                value={resetResult?.password ?? ''}
+                readOnly
+                onFocus={(event) => event.currentTarget.select()}
+                style={{ fontFamily: 'monospace' }}
+              />
+              <button
+                type="button"
+                onClick={handleCopyPassword}
+                className="btn btn-secondary"
+                style={{ whiteSpace: 'nowrap' }}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 20 }}>
+            <button
+              type="button"
+              onClick={() => {
+                setResetResult(null)
+                setCopied(false)
+              }}
+              className="btn btn-primary"
+            >
+              Done
+            </button>
+          </div>
         </div>
       </ModalOverlay>
     </div>
