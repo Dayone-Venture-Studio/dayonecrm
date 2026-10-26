@@ -13,7 +13,7 @@ export default async function DailyFeedLayout({ children }: { children: React.Re
       session={session}
       brandLabel="Day One"
       brandSublabel="Team Workspace"
-      userRole="Employee"
+      userRole={session.role === 'PROJECT_MANAGER' ? 'Project Manager' : 'Employee'}
       nav={dailySprintNav}
     >
       {children}
