@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { requireVentureManager } from '@/lib/auth/requireRole'
+import { getAdminClient } from '@/lib/supabase/admin'
 import {
   getStartupById,
   getStartupNameById,
@@ -98,7 +99,7 @@ async function StartupDetailContent({ params, searchParams }: Props) {
   const activeTab = resolveTab(rawTab)
 
   // Eager data: header, health, counts, overview + tasks tabs
-  const [startup, tasks, domains, members, weeklyPlans, profileMap, noteCount] = await Promise.all([
+  const [startup, tasks, domains, members, weeklyPlans, profileMap, noteCount, vmProfiles] = await Promise.all([
     getStartupById(startupId),
     getTasksForStartup(startupId),
     getDomainsForStartup(startupId),
@@ -106,6 +107,7 @@ async function StartupDetailContent({ params, searchParams }: Props) {
     getWeeklyPlansForStartup(startupId, { orderBy: 'week_start', ascending: false, limit: 1 }),
     getProfileNameMap(),
     getNotesCountForStartup(startupId),
+    getAdminClient().from('profiles').select('id, full_name, email, role').eq('role', 'VENTURE_MANAGER'),
   ])
 
   if (!startup) {
@@ -163,6 +165,7 @@ async function StartupDetailContent({ params, searchParams }: Props) {
         domains={(domains || []) as Domain[]}
         founder={founder?.profile || null}
         staff={staff.map((s) => s.profile)}
+        ventureManagers={(vmProfiles?.data as Profile[]) || []}
         currentWeeklyPlan={weeklyPlans?.[0] || null}
         activeTab={activeTab}
         noteCount={noteCount}

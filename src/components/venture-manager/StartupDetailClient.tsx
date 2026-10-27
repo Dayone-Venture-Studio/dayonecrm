@@ -22,6 +22,7 @@ interface Props {
   domains: Domain[]
   founder: Profile | null
   staff: Profile[]
+  ventureManagers: Profile[]
   currentWeeklyPlan: WeeklyPlan | null
   activeTab: TabType
   noteCount: number
@@ -45,6 +46,7 @@ export function StartupDetailClient({
   domains,
   founder,
   staff,
+  ventureManagers,
   currentWeeklyPlan,
   activeTab,
   noteCount,
@@ -86,6 +88,11 @@ export function StartupDetailClient({
     inProgress: tasks.filter((t) => t.status === 'IN_PROGRESS'),
     todo: tasks.filter((t) => t.status === 'TODO'),
   }
+
+  const assigneeMap = new Map<string, Profile>()
+  if (founder) assigneeMap.set(founder.id, founder)
+  staff.forEach((member) => assigneeMap.set(member.id, member))
+  ventureManagers.forEach((member) => assigneeMap.set(member.id, member))
 
   return (
     <>
@@ -262,6 +269,23 @@ export function StartupDetailClient({
                               <p className="m-0 text-[13px] text-text-muted line-clamp-2">
                                 {task.description}
                               </p>
+                            )}
+                            {task.assigned_to && assigneeMap.get(task.assigned_to) && (
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="avatar avatar-sm"
+                                  style={{
+                                    background: 'linear-gradient(135deg, #ca2f2b 0%, #9e1f1c 100%)',
+                                    color: '#ffffff',
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {assigneeMap.get(task.assigned_to)!.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                </div>
+                                <span className="text-[12px] font-medium text-text-primary">
+                                  {assigneeMap.get(task.assigned_to)!.full_name}
+                                </span>
+                              </div>
                             )}
                             <div className="mt-auto flex items-center gap-2 pt-2">
                               <span className={`badge ${PRIORITY_BADGE[task.priority] || 'badge-neutral'}`}>
