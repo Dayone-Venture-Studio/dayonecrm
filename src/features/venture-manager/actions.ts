@@ -644,7 +644,7 @@ export async function reassignTaskToEmployee(
     // Fetch the original task
     const { data: task, error: taskError } = await supabase
       .from('tasks')
-      .select('id, title, description, priority, status, due_date, startup_id, domain_id, weekly_plan_id')
+      .select('id, title, description, priority, status, due_date, startup_id, domain_id, weekly_plan_id, assigned_to')
       .eq('id', taskId)
       .single()
 
