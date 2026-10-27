@@ -16,6 +16,7 @@ export interface TasksClientProps {
   isStaff?: boolean
   currentUserId?: string
   currentPlanId?: string
+  delegationMap?: Map<string, any>
 }
 
 export interface TaskPermissions {

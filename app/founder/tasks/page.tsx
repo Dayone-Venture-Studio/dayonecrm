@@ -74,12 +74,43 @@ const getFounderTasksData = cache(async () => {
 
   staffMembers.push(...vmMembers)
 
+  // Fetch delegation data for all tasks
+  const taskIds = (tasks || []).map((t: any) => t.id)
+  let delegationsData: any = null
+  
+  if (taskIds.length > 0) {
+    const adminClient = getAdminClient()
+    delegationsData = await adminClient
+      .from('task_delegations')
+      .select(`
+        id,
+        startup_task_id,
+        team_task_id,
+        delegated_by,
+        delegated_to,
+        delegated_at,
+        metadata,
+        employee:profiles!task_delegations_delegated_to_fkey(id, full_name, email, role),
+        team_task:team_tasks!task_delegations_team_task_id_fkey(status)
+      `)
+      .in('startup_task_id', taskIds)
+  }
+
+  // Create a map of task_id -> delegation
+  const delegationMap = new Map()
+  if (delegationsData?.data) {
+    for (const delegation of delegationsData.data) {
+      delegationMap.set(delegation.startup_task_id, delegation)
+    }
+  }
+
   return {
     startupId,
     tasks: tasks || [],
     domains: domains || [],
     weeklyPlans: weeklyPlans || [],
     staffMembers,
+    delegationMap,
   }
 })
 
@@ -128,6 +159,7 @@ async function FounderTasksContent() {
         weeklyPlans={data.weeklyPlans}
         staffMembers={data.staffMembers}
         isFounder={true}
+        delegationMap={data.delegationMap}
       />
     </>
   )

@@ -143,6 +143,7 @@ export async function updateTeamTask(
 /**
  * Move a task between Kanban columns. Records who changed the status and when
  * in team_task_activities so the task shows a full status timeline.
+ * If the task is delegated from a startup task, syncs status bidirectionally.
  */
 export async function updateTeamTaskStatus(
   taskId: string,
@@ -160,7 +161,7 @@ export async function updateTeamTaskStatus(
   const supabase = await createClient()
   const { data: current, error: readError } = await supabase
     .from('team_tasks')
-    .select('status, title')
+    .select('status, title, source_task_id, startup_id')
     .eq('id', taskId)
     .single()
 
@@ -176,6 +177,56 @@ export async function updateTeamTaskStatus(
     from_status: current.status,
     to_status: status,
   })
+
+  // Bidirectional sync: if this is a delegated task, update the source startup task
+  if (current.source_task_id) {
+    const updateData: { status: TaskStatus; completed_at?: string | null; started_at?: string } = { status }
+    
+    if (status === 'DONE') {
+      updateData.completed_at = new Date().toISOString()
+    } else if (status === 'IN_PROGRESS') {
+      // Only set started_at if it wasn't already started
+      const { data: sourceTask } = await supabase
+        .from('tasks')
+        .select('started_at')
+        .eq('id', current.source_task_id)
+        .single()
+      
+      if (sourceTask && !sourceTask.started_at) {
+        updateData.started_at = new Date().toISOString()
+      }
+    } else if (status === 'TODO') {
+      updateData.completed_at = null
+    }
+
+    const { error: syncError } = await supabase
+      .from('tasks')
+      .update(updateData)
+      .eq('id', current.source_task_id)
+
+    if (syncError) {
+      console.error('Failed to sync status to startup task:', syncError)
+    } else {
+      await logActivity({
+        startupId: current.startup_id || undefined,
+        action: 'TASK_SYNCED_STATUS',
+        entityType: 'task',
+        entityId: current.source_task_id,
+        metadata: {
+          team_task_id: taskId,
+          from_status: current.status,
+          to_status: status,
+          synced_by: session.id,
+        },
+      })
+      
+      // Revalidate VM pages
+      if (current.startup_id) {
+        revalidatePath(`/venture-manager/startups/${current.startup_id}`)
+      }
+      revalidatePath('/venture-manager')
+    }
+  }
 
   if (status === 'DONE') {
     await logActivity({

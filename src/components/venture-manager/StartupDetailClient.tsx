@@ -4,7 +4,8 @@ import { useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { NoteModal } from './NoteModal'
-import type { Startup, Task, Domain, Profile, WeeklyPlan, VentureManagerNoteWithProfile, NoteEntityType } from '@/types'
+import { TaskDetailModal } from './TaskDetailModal'
+import type { Startup, Task, Domain, Profile, WeeklyPlan, VentureManagerNoteWithProfile, NoteEntityType, TaskDelegationWithProfiles } from '@/types'
 import type { StartupHealthSummary } from '@/lib/performance/calculateStartupHealth'
 import {
   Users,
@@ -13,6 +14,7 @@ import {
   MessageSquare,
   TrendingUp,
   Calendar,
+  UserPlus,
 } from 'lucide-react'
 
 interface Props {
@@ -23,9 +25,12 @@ interface Props {
   founder: Profile | null
   staff: Profile[]
   ventureManagers: Profile[]
+  employees: Profile[]
+  currentVmId: string
   currentWeeklyPlan: WeeklyPlan | null
   activeTab: TabType
   noteCount: number
+  delegationMap: Map<string, any>
   children?: ReactNode
 }
 
@@ -47,9 +52,12 @@ export function StartupDetailClient({
   founder,
   staff,
   ventureManagers,
+  employees,
+  currentVmId,
   currentWeeklyPlan,
   activeTab,
   noteCount,
+  delegationMap,
   children,
 }: Props) {
   const router = useRouter()
@@ -61,12 +69,26 @@ export function StartupDetailClient({
   const [noteEntityId, setNoteEntityId] = useState<string>(startup.id)
   const [noteEntityName, setNoteEntityName] = useState<string>(startup.name)
 
+  // Task Detail Modal State
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [taskDelegation, setTaskDelegation] = useState<TaskDelegationWithProfiles | null>(null)
+
   const openNoteModal = (type: NoteEntityType = 'STARTUP', id: string = startup.id, name: string = startup.name, existing: VentureManagerNoteWithProfile | null = null) => {
     setNoteEntityType(type)
     setNoteEntityId(id)
     setNoteEntityName(name)
     setEditingNote(existing)
     setIsNoteModalOpen(true)
+  }
+
+  const openTaskDetailModal = (task: Task, delegation: TaskDelegationWithProfiles | null = null) => {
+    setSelectedTask(task)
+    setTaskDelegation(delegation)
+  }
+
+  const closeTaskDetailModal = () => {
+    setSelectedTask(null)
+    setTaskDelegation(null)
   }
 
   const basePath = `/venture-manager/startups/${startup.id}`
@@ -242,63 +264,115 @@ export function StartupDetailClient({
           {activeTab === 'tasks' && (
             <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-3">
               {['todo', 'inProgress', 'done'].map((status) => {
-                const statusTasks = tasksByStatus[status as keyof typeof tasksByStatus]
+                // Map tasks with their effective status (use team_task status if delegated)
+                const allTasksWithStatus = tasks.map(task => {
+                  const delegation = delegationMap.get(task.id)
+                  const effectiveStatus = delegation?.team_task?.status || task.status
+                  return { ...task, effectiveStatus, delegation }
+                })
+
+                // Filter tasks by effective status for this column
+                const columnTasks = allTasksWithStatus.filter(t => {
+                  if (status === 'todo') return t.effectiveStatus === 'TODO'
+                  if (status === 'inProgress') return t.effectiveStatus === 'IN_PROGRESS'
+                  if (status === 'done') return t.effectiveStatus === 'DONE'
+                  return false
+                })
+
                 const statusLabels = { done: 'Done', inProgress: 'In Progress', todo: 'To Do' }
 
                 return (
                   <div key={status} className="flex flex-col">
                     <h3 className={SECTION_TITLE}>
                       {statusLabels[status as keyof typeof statusLabels]}
-                      <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-text-muted">{statusTasks.length}</span>
+                      <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-text-muted">{columnTasks.length}</span>
                     </h3>
-                    {statusTasks.length > 0 ? (
+                    {columnTasks.length > 0 ? (
                       <div className="flex max-h-[70vh] flex-col gap-3 overflow-y-auto pr-1">
-                        {statusTasks.map((task) => (
-                          <div key={task.id} className="relative flex flex-col gap-2 rounded-[10px] border border-border bg-surface p-4">
-                            <div className="flex items-start justify-between gap-3">
-                              <h4 className="m-0 flex-1 text-sm font-semibold leading-[1.4] text-text-primary">{task.title}</h4>
-                              <button
-                                onClick={() => openNoteModal('TASK', task.id, task.title)}
-                                className="flex cursor-pointer items-center border-none bg-transparent p-1 text-text-muted"
-                                title="Flag this task"
-                              >
-                                <MessageSquare size={14} />
-                              </button>
-                            </div>
-                            {task.description && (
-                              <p className="m-0 text-[13px] text-text-muted line-clamp-2">
-                                {task.description}
-                              </p>
-                            )}
-                            {task.assigned_to && assigneeMap.get(task.assigned_to) && (
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="avatar avatar-sm"
-                                  style={{
-                                    background: 'linear-gradient(135deg, #ca2f2b 0%, #9e1f1c 100%)',
-                                    color: '#ffffff',
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  {assigneeMap.get(task.assigned_to)!.full_name?.charAt(0)?.toUpperCase() || '?'}
+                        {columnTasks.map((taskData) => {
+                          const task = taskData
+                          const isAssignedToVm = task.assigned_to === currentVmId
+                          const delegation = taskData.delegation
+                          const isDelegated = !!delegation
+                          
+                          // Show employee as owner if delegated, otherwise show original assignee
+                          const displayedAssignee = isDelegated && delegation?.employee 
+                            ? { id: delegation.employee.id, full_name: delegation.employee.full_name }
+                            : task.assigned_to ? assigneeMap.get(task.assigned_to) : null
+                          
+                          return (
+                            <div
+                              key={task.id}
+                              className={`relative flex flex-col gap-2 rounded-[10px] border bg-surface p-4 cursor-pointer transition-all hover:shadow-md ${
+                                isDelegated ? 'border-l-4 border-l-purple-500 bg-purple-50/20' : isAssignedToVm ? 'border-l-4 border-l-brand bg-brand-dim/10' : 'border-border'
+                              }`}
+                              onClick={() => openTaskDetailModal(task, delegation || null)}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1">
+                                  <h4 className="m-0 text-sm font-semibold leading-[1.4] text-text-primary">{task.title}</h4>
+                                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                    {isAssignedToVm && !isDelegated && (
+                                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-dim text-brand text-[10px] font-bold">
+                                        <UserPlus size={10} />
+                                        Assigned to You
+                                      </div>
+                                    )}
+                                    {isDelegated && delegation?.employee && (
+                                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold">
+                                        Delegated to {delegation.employee.full_name}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                                <span className="text-[12px] font-medium text-text-primary">
-                                  {assigneeMap.get(task.assigned_to)!.full_name}
-                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    openNoteModal('TASK', task.id, task.title)
+                                  }}
+                                  className="flex cursor-pointer items-center border-none bg-transparent p-1 text-text-muted hover:text-text-primary"
+                                  title="Flag this task"
+                                >
+                                  <MessageSquare size={14} />
+                                </button>
                               </div>
-                            )}
-                            <div className="mt-auto flex items-center gap-2 pt-2">
-                              <span className={`badge ${PRIORITY_BADGE[task.priority] || 'badge-neutral'}`}>
-                                {task.priority}
-                              </span>
-                              {task.due_date && (
-                                <span className="text-[11px] font-medium text-text-muted">
-                                  Due: {new Date(task.due_date).toLocaleDateString()}
-                                </span>
+                              {task.description && (
+                                <p className="m-0 text-[13px] text-text-muted line-clamp-2">
+                                  {task.description}
+                                </p>
                               )}
+                              {displayedAssignee && (
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="avatar avatar-sm"
+                                    style={{
+                                      background: isDelegated 
+                                        ? 'linear-gradient(135deg, #9333ea 0%, #7e22ce 100%)'
+                                        : 'linear-gradient(135deg, #ca2f2b 0%, #9e1f1c 100%)',
+                                      color: '#ffffff',
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {displayedAssignee.full_name?.charAt(0)?.toUpperCase() || '?'}
+                                  </div>
+                                  <span className="text-[12px] font-medium text-text-primary">
+                                    {displayedAssignee.full_name}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="mt-auto flex items-center gap-2 pt-2">
+                                <span className={`badge ${PRIORITY_BADGE[task.priority] || 'badge-neutral'}`}>
+                                  {task.priority}
+                                </span>
+                                {task.due_date && (
+                                  <span className="text-[11px] font-medium text-text-muted">
+                                    Due: {new Date(task.due_date).toLocaleDateString()}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     ) : (
                       <p className="text-sm italic text-text-muted">No {statusLabels[status as keyof typeof statusLabels].toLowerCase()} tasks.</p>
@@ -323,6 +397,17 @@ export function StartupDetailClient({
         entityId={noteEntityId}
         entityName={noteEntityName}
         existingNote={editingNote}
+      />
+
+      {/* Task Detail Modal */}
+      <TaskDetailModal
+        task={selectedTask}
+        onClose={closeTaskDetailModal}
+        domains={domains}
+        employees={employees}
+        currentVmId={currentVmId}
+        delegation={taskDelegation}
+        startupName={startup.name}
       />
     </>
   )

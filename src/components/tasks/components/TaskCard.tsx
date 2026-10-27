@@ -38,13 +38,23 @@ export function TaskCard({
   onDelete,
 }: TaskCardProps) {
   const domainName = domains.find((d) => d.id === task.domain_id)?.name
-  const assignedMember = staffMembers.find((m) => m.user_id === task.assigned_to)
+  
+  // Check if task is delegated
+  const taskAny = task as any
+  const delegation = taskAny.delegation
+  const isDelegated = !!delegation
+  
+  // Show employee as assignee if delegated, otherwise show original assignee
+  const displayedAssignee = isDelegated && delegation?.employee
+    ? { user_id: delegation.employee.id, profile: delegation.employee }
+    : staffMembers.find((m) => m.user_id === task.assigned_to)
+  
   const isDragging = draggedTask?.id === task.id
   const isPendingUpdate = pendingUpdates.has(task.id)
 
   return (
     <div 
-      className={`task-card mb-3 cursor-grab ${task.status === 'DONE' ? 'done' : ''} ${isDragging ? 'dragging' : ''} ${isPendingUpdate ? 'updating opacity-70' : ''}`} 
+      className={`task-card mb-3 cursor-grab ${task.status === 'DONE' ? 'done' : ''} ${isDragging ? 'dragging' : ''} ${isPendingUpdate ? 'updating opacity-70' : ''} ${isDelegated ? 'border-l-4 border-l-purple-500 bg-purple-50/20' : ''}`} 
       draggable={!isPendingUpdate}
       onDragStart={() => onDragStart(task)}
       onDragEnd={onDragEnd}
@@ -61,6 +71,13 @@ export function TaskCard({
           <div className="task-card-title">
             {task.title}
           </div>
+          {isDelegated && delegation?.employee && (
+            <div className="mb-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold">
+                Delegated to {delegation.employee.full_name}
+              </span>
+            </div>
+          )}
           {task.description && (
             <div className="task-card-description">
               {task.description}
@@ -77,18 +94,42 @@ export function TaskCard({
               </span>
             )}
           </div>
-          {task.due_date && (
-            <div className="task-card-meta">
-              <Calendar size={12} />
-              <span>Due {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-            </div>
-          )}
-          {assignedMember?.profile && (
-            <div className="task-card-meta">
-              <User size={12} />
-              <span>{assignedMember.profile.full_name}</span>
-            </div>
-          )}
+          
+          {/* Due date and Owner on same line */}
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            {displayedAssignee?.profile && (
+              <div className="flex items-center gap-2 mt-3">
+                <div
+                  className="avatar avatar-sm"
+                  style={{
+                    background: isDelegated 
+                      ? 'linear-gradient(135deg, #9333ea 0%, #7e22ce 100%)'
+                      : 'linear-gradient(135deg, #ca2f2b 0%, #9e1f1c 100%)',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    width: '24px',
+                    height: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '50%',
+                    fontSize: '11px',
+                  }}
+                >
+                  {displayedAssignee.profile.full_name?.charAt(0)?.toUpperCase() || '?'}
+                </div>
+                <span className="text-[12px] font-medium text-text-primary">
+                  {displayedAssignee.profile.full_name}
+                </span>
+              </div>
+            )}
+            {task.due_date && (
+              <div className="task-card-meta">
+                <Calendar size={12} />
+                <span>Due {new Date(task.due_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         <TaskDropdownMenu

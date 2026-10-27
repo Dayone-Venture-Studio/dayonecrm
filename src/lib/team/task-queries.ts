@@ -9,7 +9,16 @@ import type {
 const TASK_COLUMNS = `
   *,
   assigned_profile:profiles!assigned_to(id, full_name, email, department),
-  created_by_profile:profiles!created_by(id, full_name)
+  created_by_profile:profiles!created_by(id, full_name),
+  startup:startups(id, name, logo_url),
+  delegation:task_delegations!task_delegations_team_task_id_fkey(
+    id,
+    startup_task_id,
+    delegated_by,
+    delegated_at,
+    metadata,
+    delegator:profiles!task_delegations_delegated_by_fkey(id, full_name, role)
+  )
 `
 
 /** All team tasks (RLS scopes this to everything a PM/admin may see). */

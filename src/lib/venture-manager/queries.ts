@@ -496,3 +496,99 @@ export async function getUnacknowledgedNotesCountForFounder(startupId: string): 
 
   return count ?? 0
 }
+
+
+// ─── Task Delegation Queries ──────────────────────────────────
+
+/**
+ * Gets delegation information for a specific startup task.
+ * 
+ * Returns the delegation record with populated employee and delegator profiles.
+ * Used by the VM Kanban to display delegation status and in the TaskDetailModal.
+ * 
+ * @param taskId - UUID of the startup task
+ * @returns Delegation record with profiles, or null if task is not delegated
+ * 
+ * @example
+ * const delegation = await getTaskDelegation(task.id)
+ * if (delegation) {
+ *   console.log(`Delegated to ${delegation.employee.full_name}`)
+ * }
+ */
+export async function getTaskDelegation(taskId: string) {
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .from('task_delegations')
+    .select(`
+      id,
+      startup_task_id,
+      team_task_id,
+      delegated_by,
+      delegated_to,
+      delegated_at,
+      metadata,
+      employee:profiles!task_delegations_delegated_to_fkey(id, full_name, email, role),
+      delegator:profiles!task_delegations_delegated_by_fkey(id, full_name, email, role)
+    `)
+    .eq('startup_task_id', taskId)
+    .single()
+
+  return data ?? null
+}
+
+/**
+ * Checks if a task is delegated (boolean check, faster than full fetch).
+ * 
+ * Useful for conditional rendering when you don't need the full delegation data.
+ * 
+ * @param taskId - UUID of the startup task
+ * @returns true if task is delegated, false otherwise
+ */
+export async function isTaskDelegated(taskId: string): Promise<boolean> {
+  const supabase = await createClient()
+
+  const { count } = await supabase
+    .from('task_delegations')
+    .select('id', { count: 'exact', head: true })
+    .eq('startup_task_id', taskId)
+
+  return (count ?? 0) > 0
+}
+
+/**
+ * Gets all tasks delegated to a specific employee.
+ * 
+ * Returns team_tasks entries with source task and startup context.
+ * Used by the employee's daily sprint board to show delegated startup tasks
+ * with special styling and context.
+ * 
+ * **Note:** The main daily sprint query (getMyTeamTasks) already includes this
+ * data via the extended TASK_COLUMNS. This function is for specific use cases.
+ * 
+ * @param employeeId - UUID of the employee (EMPLOYEE role)
+ * @returns Array of team tasks with delegation context
+ */
+export async function getDelegatedTasksForEmployee(employeeId: string) {
+  const supabase = await createClient()
+
+  const { data } = await supabase
+    .from('team_tasks')
+    .select(`
+      *,
+      startup:startups(id, name, logo_url),
+      source_task:tasks(id, title, description, startup_id, domain_id),
+      delegation:task_delegations!task_delegations_team_task_id_fkey(
+        id,
+        delegated_by,
+        delegated_at,
+        metadata,
+        delegator:profiles!task_delegations_delegated_by_fkey(id, full_name, role)
+      )
+    `)
+    .eq('assigned_to', employeeId)
+    .not('source_task_id', 'is', null)
+    .order('created_at', { ascending: false })
+
+  return data ?? []
+}

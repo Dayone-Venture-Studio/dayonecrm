@@ -264,6 +264,50 @@ export async function updateTaskStatus(
   const { error } = await supabase.from('tasks').update(updates).eq('id', id)
   if (error) return { error: 'Failed to update task status' }
 
+  // Bidirectional sync: if this task is delegated, update the team_tasks status
+  const { data: delegation } = await supabase
+    .from('task_delegations')
+    .select('team_task_id')
+    .eq('startup_task_id', id)
+    .single()
+
+  if (delegation) {
+    const teamTaskUpdates: { status: string; completed_at?: string | null; started_at?: string } = { status }
+    
+    if (status === 'DONE') {
+      teamTaskUpdates.completed_at = updates.completed_at as string
+    } else if (status === 'IN_PROGRESS' && updates.started_at) {
+      teamTaskUpdates.started_at = updates.started_at as string
+    } else if (status === 'TODO') {
+      teamTaskUpdates.completed_at = null
+    }
+
+    const { error: syncError } = await supabase
+      .from('team_tasks')
+      .update(teamTaskUpdates)
+      .eq('id', delegation.team_task_id)
+
+    if (syncError) {
+      console.error('Failed to sync status to team task:', syncError)
+    } else {
+      // Log activity for sync
+      await logActivity({
+        startupId: task.startup_id,
+        action: 'TASK_SYNCED_STATUS',
+        entityType: 'team_task',
+        entityId: delegation.team_task_id,
+        metadata: {
+          startup_task_id: id,
+          new_status: status,
+          synced_from_startup: true,
+        },
+      })
+      
+      // Revalidate employee sprint page
+      revalidatePath('/daily-sprint')
+    }
+  }
+
   // Add task update comment
   const comment = formData.get('comment') as string
   if (comment) {
@@ -280,6 +324,10 @@ export async function updateTaskStatus(
   revalidatePath('/staff')
   revalidatePath('/founder')
   revalidatePath('/tv')
+  revalidatePath('/venture-manager')
+  if (task.startup_id) {
+    revalidatePath(`/venture-manager/startups/${task.startup_id}`)
+  }
 
   return { success: 'Task status updated' }
 }
