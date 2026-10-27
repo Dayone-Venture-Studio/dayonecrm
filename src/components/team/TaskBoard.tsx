@@ -315,75 +315,102 @@ export function TaskBoard({ tasks, members, isProjectManager }: Props) {
                     </span>
                   </div>
                 ) : (
-                    colTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className={`task-card ${draggedId === task.id ? 'dragging' : ''}`}
-                        draggable
-                        onDragStart={() => handleDragStart(task)}
-                        onDragEnd={() => setDraggedId(null)}
-                        onClick={() => openDetail(task)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <div className="task-card-header">
-                          <div className="task-card-content">
-                            <div
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                gap: 8,
-                                alignItems: 'flex-start',
-                              }}
-                            >
-                              <span className="task-card-title" style={{ marginBottom: 0 }}>
-                                {task.title}
-                              </span>
-                              <span
-                                className={`badge ${PRIORITY_BADGE[task.priority]}`}
-                                style={{ flexShrink: 0 }}
+                    colTasks.map((task) => {
+                      const isDelegated = !!(task as any).source_task_id
+                      const startup = isDelegated ? (task as any).startup : null
+                      const delegation = isDelegated && (task as any).delegation?.[0] ? (task as any).delegation[0] : null
+                      
+                      return (
+                        <div
+                          key={task.id}
+                          className={`task-card ${draggedId === task.id ? 'dragging' : ''} ${isDelegated ? 'border-l-4 border-l-purple-500 bg-purple-50/30' : ''}`}
+                          draggable
+                          onDragStart={() => handleDragStart(task)}
+                          onDragEnd={() => setDraggedId(null)}
+                          onClick={() => openDetail(task)}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          <div className="task-card-header">
+                            <div className="task-card-content">
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  gap: 8,
+                                  alignItems: 'flex-start',
+                                }}
                               >
-                                {task.priority}
-                              </span>
-                            </div>
-                            {task.description && (
-                              <div className="task-card-description task-card-description--single">
-                                {task.description}
-                              </div>
-                            )}
-
-                            <div className="task-card-meta-row">
-                              {task.department && (
-                                <span className="task-card-meta-item">
-                                  <Building2 size={13} className="task-card-meta-icon" />
-                                  {task.department}
-                                </span>
-                              )}
-                              {task.due_date && (
-                                <span
-                                  className={`task-card-meta-item ${isOverdue(task) ? 'task-card-meta-item--overdue' : ''}`}
-                                >
-                                  {isOverdue(task) ? (
-                                    <AlertTriangle size={13} className="task-card-meta-icon" />
-                                  ) : (
-                                    <Calendar size={13} className="task-card-meta-icon" />
+                                <div style={{ flex: 1 }}>
+                                  <span className="task-card-title" style={{ marginBottom: 0 }}>
+                                    {task.title}
+                                  </span>
+                                  {isDelegated && (
+                                    <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+                                      <span className="badge badge-info" style={{ fontSize: 10 }}>
+                                        Startup Task
+                                      </span>
+                                      {startup && (
+                                        <span className="text-xs font-semibold text-purple-700">
+                                          {startup.name}
+                                        </span>
+                                      )}
+                                    </div>
                                   )}
-                                  {task.due_date}
+                                </div>
+                                <span
+                                  className={`badge ${PRIORITY_BADGE[task.priority]}`}
+                                  style={{ flexShrink: 0 }}
+                                >
+                                  {task.priority}
                                 </span>
+                              </div>
+                              {task.description && (
+                                <div className="task-card-description task-card-description--single">
+                                  {task.description}
+                                </div>
+                              )}
+
+                              {delegation && (
+                                <div style={{ marginTop: 8, fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                  <span style={{ fontWeight: 600 }}>Assigned by:</span>{' '}
+                                  {delegation.delegator?.full_name || 'Unknown'}
+                                </div>
+                              )}
+
+                              <div className="task-card-meta-row">
+                                {task.department && (
+                                  <span className="task-card-meta-item">
+                                    <Building2 size={13} className="task-card-meta-icon" />
+                                    {task.department}
+                                  </span>
+                                )}
+                                {task.due_date && (
+                                  <span
+                                    className={`task-card-meta-item ${isOverdue(task) ? 'task-card-meta-item--overdue' : ''}`}
+                                  >
+                                    {isOverdue(task) ? (
+                                      <AlertTriangle size={13} className="task-card-meta-icon" />
+                                    ) : (
+                                      <Calendar size={13} className="task-card-meta-icon" />
+                                    )}
+                                    {task.due_date}
+                                  </span>
+                                )}
+                              </div>
+
+                              {isProjectManager && (
+                                <div className="task-card-meta">
+                                  <span className="avatar avatar-sm">
+                                    {(task.assigned_profile?.full_name || 'U').charAt(0)}
+                                  </span>
+                                  <span>{task.assigned_profile?.full_name || 'Unassigned'}</span>
+                                </div>
                               )}
                             </div>
-
-                            {isProjectManager && (
-                              <div className="task-card-meta">
-                                <span className="avatar avatar-sm">
-                                  {(task.assigned_profile?.full_name || 'U').charAt(0)}
-                                </span>
-                                <span>{task.assigned_profile?.full_name || 'Unassigned'}</span>
-                              </div>
-                            )}
                           </div>
                         </div>
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </div>
               </div>

@@ -1,5 +1,7 @@
 import { Suspense } from 'react'
 import { requireVentureManager } from '@/lib/auth/requireRole'
+import { getAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import {
   getStartupById,
   getStartupNameById,
@@ -92,13 +94,13 @@ export default function StartupDetailPage({ params, searchParams }: Props) {
 }
 
 async function StartupDetailContent({ params, searchParams }: Props) {
-  await requireVentureManager()
+  const session = await requireVentureManager()
   const { startupId } = await params
   const { tab: rawTab } = await searchParams
   const activeTab = resolveTab(rawTab)
 
   // Eager data: header, health, counts, overview + tasks tabs
-  const [startup, tasks, domains, members, weeklyPlans, profileMap, noteCount] = await Promise.all([
+  const [startup, tasks, domains, members, weeklyPlans, profileMap, noteCount, vmProfiles, employees] = await Promise.all([
     getStartupById(startupId),
     getTasksForStartup(startupId),
     getDomainsForStartup(startupId),
@@ -106,10 +108,41 @@ async function StartupDetailContent({ params, searchParams }: Props) {
     getWeeklyPlansForStartup(startupId, { orderBy: 'week_start', ascending: false, limit: 1 }),
     getProfileNameMap(),
     getNotesCountForStartup(startupId),
+    getAdminClient().from('profiles').select('id, full_name, email, role').eq('role', 'VENTURE_MANAGER'),
+    getAdminClient().from('profiles').select('id, full_name, email, role, department').eq('role', 'EMPLOYEE'),
   ])
 
   if (!startup) {
     notFound()
+  }
+
+  // Fetch delegations for all tasks
+  const taskIds = (tasks || []).map((t: any) => t.id)
+  let delegationsData: any = null
+  
+  if (taskIds.length > 0) {
+    delegationsData = await getAdminClient()
+      .from('task_delegations')
+      .select(`
+        id,
+        startup_task_id,
+        team_task_id,
+        delegated_by,
+        delegated_to,
+        delegated_at,
+        metadata,
+        employee:profiles!task_delegations_delegated_to_fkey(id, full_name, email, role),
+        team_task:team_tasks!task_delegations_team_task_id_fkey(status)
+      `)
+      .in('startup_task_id', taskIds)
+  }
+
+  // Create a map of task_id -> delegation
+  const delegationMap = new Map()
+  if (delegationsData?.data) {
+    for (const delegation of delegationsData.data) {
+      delegationMap.set(delegation.startup_task_id, delegation)
+    }
   }
 
   // Calculate health
@@ -163,9 +196,13 @@ async function StartupDetailContent({ params, searchParams }: Props) {
         domains={(domains || []) as Domain[]}
         founder={founder?.profile || null}
         staff={staff.map((s) => s.profile)}
+        ventureManagers={(vmProfiles?.data as Profile[]) || []}
+        employees={(employees?.data as Profile[]) || []}
+        currentVmId={session.id}
         currentWeeklyPlan={weeklyPlans?.[0] || null}
         activeTab={activeTab}
         noteCount={noteCount}
+        delegationMap={delegationMap}
       >
         <Suspense key={activeTab} fallback={<TabSkeleton />}>
           <TabSection tab={activeTab} startupId={startupId} startupName={startup.name} />

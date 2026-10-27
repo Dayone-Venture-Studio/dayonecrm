@@ -21,6 +21,7 @@ export const adminNav: NavItem[] = [
   { href: '/admin/registrations', label: 'Registrations', icon: '📋' },
   { href: '/admin/startups', label: 'Startups', icon: '🚀' },
   { href: '/admin/team', label: 'Team', icon: '👥' },
+  { href: '/admin/venture-managers', label: 'Venture Managers', icon: '🧭' },
   { href: '/admin/performance', label: 'Performance', icon: '📈' },
   { href: '/admin/activity', label: 'Activity', icon: '⚡' },
   { href: '/tv', label: 'Live TV Wall', icon: '📺' },

@@ -25,6 +25,7 @@ export function TasksClient({
   isStaff = false,
   currentUserId,
   currentPlanId,
+  delegationMap = new Map(),
 }: TasksClientProps) {
   // Permissions
   const canCreateTask = isFounder || isStaff
@@ -42,7 +43,7 @@ export function TasksClient({
   // Custom hooks
   const { optimisticTasks, pendingUpdates, handleStatusChange } = useTaskStatusUpdate(tasks, startupId)
   const dragDropHandlers = useTaskDragDrop(handleStatusChange)
-  const { filterDomain, setFilterDomain, organizedTasks } = useTaskFilters(optimisticTasks)
+  const { filterDomain, setFilterDomain, organizedTasks } = useTaskFilters(optimisticTasks, delegationMap)
 
   // Delete handler
   const handleDelete = (taskId: string) => {

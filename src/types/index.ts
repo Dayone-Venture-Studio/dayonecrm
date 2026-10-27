@@ -310,6 +310,51 @@ export interface TeamTaskStats {
   overdue: number
 }
 
+// ─── Task Delegation Types ──────────────────────────────────────────────────
+
+export interface DelegationMetadata {
+  note?: string
+  startup_name?: string
+  original_assigned_to?: string | null
+  reassigned_at?: string
+  previous_employee?: string
+  previous_employee_name?: string
+  [key: string]: unknown
+}
+
+export interface TaskDelegation {
+  id: string
+  startup_task_id: string
+  team_task_id: string
+  delegated_by: string
+  delegated_to: string
+  delegated_at: string
+  metadata: DelegationMetadata | null
+}
+
+export interface TaskDelegationWithProfiles extends TaskDelegation {
+  employee: Pick<Profile, 'id' | 'full_name' | 'email' | 'role'> | null
+  delegator: Pick<Profile, 'id' | 'full_name' | 'email' | 'role'> | null
+}
+
+export interface TeamTaskWithDelegation extends TeamTaskWithDetails {
+  source_task_id: string | null
+  startup_id: string | null
+  startup: Pick<Startup, 'id' | 'name' | 'logo_url'> | null
+  delegation: Array<{
+    id: string
+    startup_task_id: string
+    delegated_by: string
+    delegated_at: string
+    metadata: DelegationMetadata | null
+    delegator: Pick<Profile, 'id' | 'full_name' | 'role'> | null
+  }> | null
+}
+
+export interface TaskWithDelegation extends Task {
+  delegation: TaskDelegationWithProfiles | null
+}
+
 // ─── Form / Action State Types ──────────────────────────────────────────────
 
 export type ActionState = {

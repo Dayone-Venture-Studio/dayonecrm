@@ -974,7 +974,7 @@ tr:hover td { background: #faf8eb; color: var(--color-text-primary); }
 .task-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: start;
   gap: 8px;
 }
 

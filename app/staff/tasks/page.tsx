@@ -41,6 +41,36 @@ const getStaffTasksData = cache(async () => {
 
   const currentPlan = weeklyPlans?.find((p) => p.week_start <= today && p.week_end >= today) || weeklyPlans?.[0]
 
+  // Fetch delegation data for all tasks
+  const taskIds = (tasks || []).map((t: any) => t.id)
+  let delegationsData: any = null
+  
+  if (taskIds.length > 0) {
+    const { data: delegations } = await supabase
+      .from('task_delegations')
+      .select(`
+        id,
+        startup_task_id,
+        team_task_id,
+        delegated_by,
+        delegated_to,
+        delegated_at,
+        metadata,
+        employee:profiles!task_delegations_delegated_to_fkey(id, full_name, email, role),
+        team_task:team_tasks!task_delegations_team_task_id_fkey(status)
+      `)
+      .in('startup_task_id', taskIds)
+    delegationsData = delegations
+  }
+
+  // Create a map of task_id -> delegation
+  const delegationMap = new Map()
+  if (delegationsData) {
+    for (const delegation of delegationsData) {
+      delegationMap.set(delegation.startup_task_id, delegation)
+    }
+  }
+
   return {
     startupId,
     currentUserId: session!.id,
@@ -49,6 +79,7 @@ const getStaffTasksData = cache(async () => {
     weeklyPlans: weeklyPlans || [],
     staffMembers: (staffMembers as any) || [],
     currentPlanId: currentPlan?.id,
+    delegationMap,
   }
 })
 
@@ -100,6 +131,7 @@ async function StaffTasksContent() {
         isStaff={true}
         currentUserId={data.currentUserId}
         currentPlanId={data.currentPlanId}
+        delegationMap={data.delegationMap}
       />
     </>
   )
